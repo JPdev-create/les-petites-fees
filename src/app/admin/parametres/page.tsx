@@ -45,7 +45,12 @@ export default function SettingsPage() {
             <Field label="E-mail"><input className="input" value={s.companyEmail} onChange={(e) => set("companyEmail", e.target.value)} /></Field>
             <Field label="Téléphone"><input className="input" value={s.companyPhone} onChange={(e) => set("companyPhone", e.target.value)} /></Field>
           </div>
-          <Field label="N° d'entreprise / TVA"><input className="input" value={s.vatNumber} onChange={(e) => set("vatNumber", e.target.value)} placeholder="BE0123.456.789" /></Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Forme juridique"><input className="input" value={s.legalForm} onChange={(e) => set("legalForm", e.target.value)} placeholder="SRL, personne physique…" /></Field>
+            <Field label="N° d'entreprise (BCE)"><input className="input" value={s.bceNumber} onChange={(e) => set("bceNumber", e.target.value)} placeholder="0123.456.789" /></Field>
+          </div>
+          <Field label="N° de TVA"><input className="input" value={s.vatNumber} onChange={(e) => set("vatNumber", e.target.value)} placeholder="BE0123.456.789" /></Field>
+          <p className="hint !mt-0">Ces informations apparaissent sur les factures et dans les mentions légales du site (obligatoires en Belgique).</p>
         </section>
 
         <section className="card space-y-4 p-5">
@@ -54,8 +59,9 @@ export default function SettingsPage() {
             <Field label="IBAN"><input className="input font-mono" value={s.iban} onChange={(e) => set("iban", e.target.value)} placeholder="BE00 0000 0000 0000" /></Field>
             <Field label="BIC"><input className="input font-mono" value={s.bic} onChange={(e) => set("bic", e.target.value)} /></Field>
           </div>
+          <Toggle checked={s.vatFranchise} onChange={(v) => set("vatFranchise", v)} label="Régime de franchise de TVA" hint="Petite entreprise exemptée (art. 56bis) : factures sans TVA, avec la mention légale." />
           <div className="grid grid-cols-3 gap-4">
-            <Field label="TVA (%)"><input type="number" step="0.5" className="input" value={s.vatRate} onChange={(e) => set("vatRate", +e.target.value)} /></Field>
+            <Field label="TVA (%)"><input type="number" step="0.5" className="input" disabled={s.vatFranchise} value={s.vatFranchise ? 0 : s.vatRate} onChange={(e) => set("vatRate", +e.target.value)} /></Field>
             <Field label="Préfixe"><input className="input" value={s.invoicePrefix} onChange={(e) => set("invoicePrefix", e.target.value)} /></Field>
             <Field label="Délai (jours)"><input type="number" className="input" value={s.paymentDays} onChange={(e) => set("paymentDays", +e.target.value)} /></Field>
           </div>

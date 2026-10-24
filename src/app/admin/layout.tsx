@@ -66,14 +66,14 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-dvh lg:pl-64">
       {/* Barre latérale (PC) */}
       <aside className="no-print fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-gradient-to-b from-brand-800 to-brand-950 p-4 lg:flex">
-        <Link href="/admin/" className="mb-6 px-2 pt-2"><Logo className="!h-14" /></Link>
+        <Link href="/admin/" className="mb-6 px-2 pt-2"><Logo className="!h-auto w-full" /></Link>
         {nav}
         {user}
       </aside>
 
       {/* En-tête (mobile) */}
       <header className="no-print sticky top-0 z-40 flex items-center justify-between bg-brand-800 px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] lg:hidden">
-        <Link href="/admin/"><Logo className="!h-9" /></Link>
+        <Link href="/admin/"><Logo className="!h-11" /></Link>
         <div className="flex items-center gap-1 text-white">
           <ThemeToggle className="!text-white hover:!bg-white/10" />
           <button onClick={() => setOpen(true)} className="btn-ghost size-9 px-0 !text-white hover:!bg-white/10" aria-label="Menu">

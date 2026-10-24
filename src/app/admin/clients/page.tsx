@@ -54,7 +54,7 @@ export default function ClientsPage() {
     <>
       <PageHeader
         title="Clients & accès"
-        subtitle="Chaque client se connecte avec son adresse e-mail et un code reçu par e-mail."
+        subtitle="Chaque client se connecte avec son compte Google, ou un lien reçu par e-mail."
         actions={<button className="btn-primary" onClick={() => setEdit({ form: empty(tab), isNew: true })}><Plus className="size-4" /> {tab === "OWNER" ? "Nouveau client" : "Nouveau gestionnaire"}</button>}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">

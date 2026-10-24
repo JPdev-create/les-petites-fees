@@ -4,10 +4,10 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
-import { LogOut, ShieldAlert } from "lucide-react";
 import { fb, BASE_PATH } from "@/lib/firebase";
 import type { Profile, Role } from "@/lib/types";
 import { Splash } from "./ui";
+import { Onboarding } from "./onboarding";
 
 type AuthState = { user: User | null; profile: Profile | null; loading: boolean };
 const AuthContext = createContext<AuthState>({ user: null, profile: null, loading: true });
@@ -67,25 +67,15 @@ export function RequireRole({ role, children }: { role: Role; children: (profile
   }, [loading, user, profile, role, router]);
 
   if (loading || !user || (profile && profile.role !== role)) return <Splash />;
-  if (!profile) return <NoAccess email={user.email ?? ""} />;
+  if (!profile) return <NoAccess user={user} />;
   return <>{children(profile)}</>;
 }
 
-function NoAccess({ email }: { email: string }) {
+function NoAccess({ user }: { user: User }) {
   return (
-    <div className="grid min-h-dvh place-items-center p-6">
-      <div className="card max-w-md animate-in p-8 text-center">
-        <div className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300">
-          <ShieldAlert className="size-6" />
-        </div>
-        <h1 className="font-display text-xl font-semibold">Adresse non reconnue</h1>
-        <p className="muted mt-2 text-sm">
-          L&apos;adresse <strong className="text-zinc-800 dark:text-zinc-200">{email}</strong> n&apos;est pas encore enregistrée chez Les Petites Fées.
-          Contactez-nous pour que nous l&apos;ajoutions, ou connectez-vous avec l&apos;adresse e-mail que vous nous avez communiquée.
-        </p>
-        <button className="btn-secondary mt-6" onClick={() => logout()}>
-          <LogOut className="size-4" /> Changer d&apos;adresse
-        </button>
+    <div className="grid min-h-dvh place-items-center p-5">
+      <div className="card w-full max-w-sm p-7">
+        <Onboarding user={user} />
       </div>
     </div>
   );

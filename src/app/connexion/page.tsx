@@ -7,8 +7,9 @@ import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from "firebas
 import { ArrowLeft, CheckCircle2, Mail, MailCheck } from "lucide-react";
 import { fb, BASE_PATH } from "@/lib/firebase";
 import { sendLoginLink } from "@/lib/actions";
-import { AuthProvider, useAuth, logout } from "@/components/auth";
-import { ErrorNote, Logo, Spinner, ThemeToggle } from "@/components/ui";
+import { AuthProvider, useAuth } from "@/components/auth";
+import { Onboarding } from "@/components/onboarding";
+import { ErrorNote, Logo, Spinner, Splash, ThemeToggle } from "@/components/ui";
 
 function firebaseError(e: unknown) {
   const code = (e as { code?: string })?.code ?? "";
@@ -86,18 +87,14 @@ function LoginInner() {
   };
 
 
-  // Connecté mais adresse inconnue
+  // Connecté : redirection en cours vers son espace
+  if (!loading && user && profile) return <Splash />;
+
+  // Première connexion : création de l'espace client
   if (!loading && user && !profile) {
     return (
       <Shell>
-        <h1 className="font-display text-2xl font-semibold">Adresse non reconnue</h1>
-        <p className="muted mt-2 text-sm">
-          Vous êtes connecté avec <strong className="text-zinc-800 dark:text-zinc-200">{user.email}</strong>, mais cette adresse n&apos;est pas enregistrée chez Les Petites Fées.
-          Utilisez l&apos;adresse que vous nous avez communiquée, ou contactez-nous.
-        </p>
-        <button className="btn-secondary mt-6 w-full" onClick={() => logout()}>
-          Utiliser une autre adresse
-        </button>
+        <Onboarding user={user} />
       </Shell>
     );
   }
@@ -159,6 +156,10 @@ function LoginInner() {
           <Mail className="size-4" /> Pas de compte Google ? Recevoir un lien par e-mail
         </button>
       )}
+      <p className="muted mt-10 text-center text-[11px] leading-relaxed">
+        En vous connectant, vous acceptez nos <Link href="/legal/#conditions" className="underline">conditions d&apos;utilisation</Link> et
+        notre <Link href="/legal/#confidentialite" className="underline">politique de confidentialité</Link>.
+      </p>
     </Shell>
   );
 }
@@ -169,7 +170,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <aside className="relative hidden overflow-hidden bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 p-12 text-white lg:flex lg:flex-col">
         <div className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-brand-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 -left-20 size-96 rounded-full bg-cyan-300/10 blur-3xl" />
-        <Link href="/"><Logo className="!h-20" /></Link>
+        <Link href="/"><Logo className="!h-28" /></Link>
         <div className="relative mt-auto max-w-md">
           <p className="font-display text-3xl font-semibold leading-tight">Vos nettoyages planifiés en 30 secondes.</p>
           <p className="mt-4 text-white/75">Touchez vos dates, nous nous occupons du reste. Confirmation par e-mail, historique et factures au même endroit.</p>

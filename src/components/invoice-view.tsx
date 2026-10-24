@@ -25,7 +25,8 @@ export function InvoiceView({ inv, s }: { inv: Invoice; s: Settings }) {
             <p className="font-display text-lg font-semibold text-brand-800">{s.companyName}</p>
             <p className="text-zinc-600">{s.companyAddress}</p>
             <p className="text-zinc-600">{s.companyPhone} · {s.companyEmail}</p>
-            {s.vatNumber && <p className="text-zinc-600">TVA {s.vatNumber}</p>}
+            {s.bceNumber && <p className="text-zinc-600">BCE {s.bceNumber}{s.legalForm ? ` · ${s.legalForm}` : ""}</p>}
+            {!s.vatFranchise && s.vatNumber && <p className="text-zinc-600">TVA {s.vatNumber}</p>}
           </div>
         </div>
         <div className="text-right">
@@ -73,8 +74,8 @@ export function InvoiceView({ inv, s }: { inv: Invoice; s: Settings }) {
 
       <div className="mt-6 ml-auto w-full max-w-xs space-y-1.5 text-sm">
         <div className="flex justify-between"><span className="text-zinc-500">Total HTVA</span><span>{euros(inv.totalHT)}</span></div>
-        <div className="flex justify-between"><span className="text-zinc-500">TVA {inv.vatRate} %</span><span>{euros(inv.totalVAT)}</span></div>
-        <div className="flex justify-between border-t-2 border-zinc-900 pt-2 text-base font-semibold"><span>Total TVAC</span><span>{euros(inv.totalTTC)}</span></div>
+        {inv.vatRate > 0 && <div className="flex justify-between"><span className="text-zinc-500">TVA {inv.vatRate} %</span><span>{euros(inv.totalVAT)}</span></div>}
+        <div className="flex justify-between border-t-2 border-zinc-900 pt-2 text-base font-semibold"><span>{inv.vatRate > 0 ? "Total TVAC" : "Total à payer"}</span><span>{euros(inv.totalTTC)}</span></div>
       </div>
 
       <footer className="mt-12 rounded-2xl bg-zinc-50 p-5 text-sm">
@@ -89,6 +90,7 @@ export function InvoiceView({ inv, s }: { inv: Invoice; s: Settings }) {
             </p>
           </>
         )}
+        {inv.vatRate === 0 && <p className="mt-3 text-zinc-600">Régime particulier de franchise des petites entreprises — TVA non applicable (art. 56bis du Code de la TVA).</p>}
         {inv.notes && <p className="mt-3 text-zinc-600">{inv.notes}</p>}
       </footer>
     </article>

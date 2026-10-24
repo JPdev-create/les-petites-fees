@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Plus, X, RefreshCw, Link2, Info, CalendarPlus } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, RefreshCw, Link2, Info, CalendarPlus, Phone, Mail, Navigation, UserRound, AlertCircle } from "lucide-react";
 import { useAdmin } from "@/components/admin-data";
 import { MissionDialog, MissionLine, NewMissionDialog } from "@/components/mission-admin";
 import { Field, PageHeader, Spinner, Toggle } from "@/components/ui";
@@ -95,6 +95,12 @@ export default function PlaceForm() {
         }
       />
 
+      {existing?.pendingReview && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
+          <AlertCircle className="mt-0.5 size-5 shrink-0" />
+          <p className="flex-1"><strong>Nouveau lieu ajouté par {existing.ownerName}.</strong> Vérifiez les informations et fixez le tarif d&apos;un passage, puis cliquez sur « Enregistrer » pour le valider.</p>
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-6">
           <section className="card space-y-4 p-5">
@@ -169,6 +175,28 @@ export default function PlaceForm() {
         </div>
 
         <div className="space-y-6">
+          {(() => {
+            const o = owners.find((x) => x.id === f.ownerEmail);
+            if (!o) return null;
+            const full = `${f.address} ${f.postalCode ?? ""} ${f.city ?? ""}`.trim();
+            return (
+              <section className="card space-y-3 p-5">
+                <h2 className="flex items-center gap-2 font-display font-semibold"><UserRound className="size-4 text-brand-600" /> Propriétaire</h2>
+                <div className="text-sm">
+                  <p className="font-semibold">{o.name}{o.company ? <span className="muted font-normal"> · {o.company}</span> : null}</p>
+                  {o.phone && <p className="muted">{o.phone}</p>}
+                  <p className="muted break-all">{o.email}</p>
+                  {o.billingAddress && <p className="muted mt-1 whitespace-pre-line text-xs">Facturation : {o.billingAddress}</p>}
+                  {o.vatNumber && <p className="muted text-xs">TVA {o.vatNumber}</p>}
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {o.phone ? <a href={`tel:${o.phone.replace(/s/g, "")}`} className="btn-secondary btn-sm"><Phone className="size-3.5" /> Appeler</a> : <span />}
+                  <a href={`mailto:${o.email}`} className="btn-secondary btn-sm"><Mail className="size-3.5" /> E-mail</a>
+                  <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(full)}`} target="_blank" rel="noreferrer" className="btn-secondary btn-sm"><Navigation className="size-3.5" /> Itinéraire</a>
+                </div>
+              </section>
+            );
+          })()}
           <section className="card space-y-4 p-5">
             <h2 className="font-display font-semibold">Tarif & organisation</h2>
             <Field label="Prix d'un passage (HTVA)">
@@ -177,7 +205,7 @@ export default function PlaceForm() {
                 <span className="muted absolute right-3 top-1/2 -translate-y-1/2 text-sm">€</span>
               </div>
             </Field>
-            <p className="muted -mt-2 text-xs">{euros(Math.round(f.price * (1 + settings.vatRate / 100)))} TVAC ({settings.vatRate} %)</p>
+            <p className="muted -mt-2 text-xs">{settings.vatFranchise ? "Franchise de TVA : prix final" : `${euros(Math.round(f.price * (1 + settings.vatRate / 100)))} TVAC (${settings.vatRate} %)`}</p>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Heure habituelle"><input type="time" className="input" value={f.defaultTime ?? ""} onChange={(e) => set("defaultTime", e.target.value)} /></Field>
               <Field label="Durée (min)"><input type="number" min={15} step={15} className="input" value={f.durationMin} onChange={(e) => set("durationMin", +e.target.value)} /></Field>

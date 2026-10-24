@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarPlus, CheckCircle2, Clock, Phone, Mail, ArrowRight, Sparkles, CircleDashed, Receipt } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Clock, Phone, Mail, ArrowRight, Sparkles, CircleDashed, Receipt, Home } from "lucide-react";
 import { useOwner } from "@/components/owner-data";
 import { OwnerMissionSheet } from "@/components/owner-mission";
 import { InstallPrompt } from "@/components/pwa";
@@ -41,7 +41,7 @@ export default function OwnerHome() {
       </div>
 
       {/* Appel à l'action principal */}
-      <Link
+      {gites.length > 0 && <Link
         href={`/espace/planifier/?mois=${target}`}
         className="group relative block overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900 p-6 text-white shadow-xl shadow-brand-900/20 transition active:scale-[0.99]"
       >
@@ -54,7 +54,7 @@ export default function OwnerHome() {
         <span className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-[15px] font-semibold text-brand-800 shadow-md transition group-hover:gap-3">
           <CalendarPlus className="size-5" /> {todo.length ? "C'est parti" : "Ajouter des dates"} <ArrowRight className="size-4" />
         </span>
-      </Link>
+      </Link>}
 
       {gites.length > 1 && (
         <div className="card divide-y divide-[var(--border)]">
@@ -73,10 +73,14 @@ export default function OwnerHome() {
       )}
 
       {gites.length === 0 && (
-        <div className="card p-5 text-sm">
-          <p className="font-semibold">Votre espace est prêt</p>
-          <p className="muted mt-1">Nous n&apos;avons pas encore associé de lieu à votre compte. Contactez-nous et nous l&apos;ajoutons en un instant.</p>
-        </div>
+        <Link href="/espace/lieux/?ajouter=1" className="card flex items-center gap-4 p-5 transition active:scale-[0.99]">
+          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"><Home className="size-6" /></span>
+          <span className="flex-1">
+            <span className="block font-semibold">Ajoutez votre premier lieu</span>
+            <span className="muted block text-sm">Gîte, appartement ou bureau : l&apos;adresse et quelques infos suffisent.</span>
+          </span>
+          <ArrowRight className="size-5 text-zinc-400" />
+        </Link>
       )}
 
       <InstallPrompt />

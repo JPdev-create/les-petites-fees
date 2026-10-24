@@ -117,7 +117,7 @@ export async function adminCreateMissions(gite: Gite, dates: string[], opts: { t
 export async function saveGite(data: Omit<Gite, "id">, id: string | null, by: string) {
   const t = now();
   if (id) {
-    await updateDoc(doc(db(), "gites", id), { ...data, updatedAt: t });
+    await updateDoc(doc(db(), "gites", id), { ...data, pendingReview: false, updatedAt: t });
     // Garde les infos dénormalisées des passages à venir à jour
     const snap = await getDocs(query(collection(db(), "missions"), where("giteId", "==", id)));
     const batch = writeBatch(db());
@@ -136,6 +136,26 @@ export async function saveGite(data: Omit<Gite, "id">, id: string | null, by: st
   }
   const ref = await addDoc(collection(db(), "gites"), { ...data, createdAt: t, updatedAt: t });
   await log(by, `Nouveau lieu : ${data.name}`);
+  return ref.id;
+}
+
+export async function selfSignup(email: string, data: Pick<Profile, "name" | "phone" | "company" | "billingAddress" | "vatNumber">) {
+  const id = email.toLowerCase();
+  await setDoc(doc(db(), "profiles", id), {
+    ...data, email: id, role: "OWNER", active: true, notifyEmail: true, notifySms: false, notifyAdmin: true,
+    createdAt: now(), lastLoginAt: now(),
+  });
+}
+
+export type OwnerGiteInput = Pick<Gite, "name" | "kind" | "address" | "postalCode" | "city" | "accessInfo" | "notes" | "bedrooms" | "bathrooms" | "capacity" | "bedSets" | "towelSets" | "defaultTime" | "icalFeeds">;
+
+/** Le client ajoute un lieu : tarif par défaut, à vérifier par le gestionnaire. */
+export async function ownerCreateGite(owner: Profile, data: OwnerGiteInput, settings: Settings, color: string) {
+  const t = now();
+  const ref = await addDoc(collection(db(), "gites"), {
+    ...data, ownerEmail: owner.id, ownerName: owner.name, price: settings.defaultPrice, durationMin: 120,
+    color, active: true, pendingReview: true, notifyAdmin: true, createdAt: t, updatedAt: t,
+  });
   return ref.id;
 }
 
@@ -210,13 +230,14 @@ export async function generateInvoices(period: string, missions: Mission[], prof
       quantity: 1, unitPrice: m.price, total: m.price,
     }));
     const totalHT = lines.reduce((a, l) => a + l.total, 0);
-    const totalVAT = Math.round((totalHT * settings.vatRate) / 100);
+    const vatRate = settings.vatFranchise ? 0 : settings.vatRate;
+    const totalVAT = Math.round((totalHT * vatRate) / 100);
     const ref = doc(collection(db(), "invoices"));
     const invoice: Omit<Invoice, "id"> = {
       number: `${settings.invoicePrefix}${year}-${String(startSeq + i).padStart(4, "0")}`,
       ownerEmail: email, ownerName: owner?.name ?? list[0].ownerName, ownerCompany: owner?.company ?? "",
       ownerAddress: owner?.billingAddress ?? "", ownerVat: owner?.vatNumber ?? "",
-      period, issueDate: issue.toISOString(), dueDate: due.toISOString(), vatRate: settings.vatRate,
+      period, issueDate: issue.toISOString(), dueDate: due.toISOString(), vatRate,
       lines, totalHT, totalVAT, totalTTC: totalHT + totalVAT, status: "DRAFT", missionIds: list.map((m) => m.id),
     };
     batch.set(ref, invoice);

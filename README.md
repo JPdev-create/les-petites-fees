@@ -73,11 +73,18 @@ Ajouter les secrets `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`
 
 ## Utilisation au quotidien
 
-1. **Ajouter un client** : *Clients → Nouveau client* (nom + e-mail), puis **Inviter** pour lui envoyer son accès.
-2. **Ajouter ses lieux** : *Gîtes & lieux → Nouveau lieu* (adresse, accès, prix, linge, liens iCal Airbnb/Booking).
+1. **Les clients s'inscrivent seuls** : ils se connectent avec Google (ou un lien par e-mail), remplissent une courte fiche, puis ajoutent eux-mêmes leurs gîtes / bureaux (*Mes lieux*).
+2. Chaque nouveau lieu arrive **« à vérifier »** chez le gestionnaire (alerte + e-mail) avec le tarif par défaut : ouvrir la fiche dans *Gîtes & lieux*, ajuster le prix, **Enregistrer**. Le client ne peut jamais modifier un prix.
 3. Le client encode ses dates → elles arrivent dans **Demandes** (et par e-mail) → **Confirmer** (une par une ou toutes d'un coup). Le client est prévenu automatiquement.
 4. Après le passage : **Demandes → À clôturer → Marquer effectués**.
 5. En début de mois : **Factures → Générer les factures** → vérifier → **Envoyer** → **Payée** à réception.
+
+Le gestionnaire peut aussi créer un client ou un lieu lui-même (*Clients → Nouveau client*, *Gîtes & lieux → Nouveau lieu*) puis l'**inviter**.
+
+### Conformité
+- Page **Informations légales** (`/legal/`) : mentions légales (CDE), politique de confidentialité (RGPD), cookies, conditions d'utilisation.
+- À compléter dans *Paramètres* : **forme juridique, n° BCE, n° de TVA** (ou cocher le **régime de franchise** : factures sans TVA avec la mention légale).
+- Les clients peuvent **télécharger leurs données** et **demander la suppression** de leur compte (*Compte → Mes données*). Le journal des e-mails est purgé après 12 mois.
 
 ### Logo
 Déposer le logo (PNG, fond transparent, version blanche) dans `public/logo.png`, puis `node scripts/icons.mjs` pour régénérer les icônes de l'application.

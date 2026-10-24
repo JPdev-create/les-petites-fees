@@ -18,6 +18,7 @@ export type Profile = {
   active: boolean;
   createdAt?: string;
   lastLoginAt?: string;
+  notifyAdmin?: boolean; // inscription à signaler aux gestionnaires
 };
 
 export type IcalFeed = { label: string; url: string };
@@ -47,6 +48,8 @@ export type Gite = {
   icalLastSync?: string;
   icalLastError?: string | null;
   active: boolean;
+  pendingReview?: boolean; // ajouté par le client, tarif à vérifier
+  notifyAdmin?: boolean;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -134,6 +137,9 @@ export type Settings = {
   companyEmail: string;
   companyPhone: string;
   vatNumber: string;
+  legalForm: string; // ex. « SRL », « Personne physique »
+  bceNumber: string; // n° d'entreprise (BCE)
+  vatFranchise: boolean; // régime de franchise des petites entreprises (art. 56bis CTVA)
   iban: string;
   bic: string;
   vatRate: number;
@@ -172,6 +178,9 @@ export const DEFAULT_SETTINGS: Settings = {
   companyEmail: "petitesfeesdemarche@gmail.com",
   companyPhone: "0470 62 77 49",
   vatNumber: "",
+  legalForm: "",
+  bceNumber: "",
+  vatFranchise: false,
   iban: "",
   bic: "",
   vatRate: 21,

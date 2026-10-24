@@ -23,21 +23,46 @@ service cloud.firestore {
     function gite(id) { return get(/databases/$(database)/documents/gites/$(id)).data; }
     function isDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
 
+    // Inscription libre : une personne connectée (e-mail vérifié) peut créer SON profil client,
+    // jamais un profil gestionnaire ni celui de quelqu'un d'autre.
+    function validSelfSignup(id) {
+      let d = request.resource.data;
+      return signedIn() && id == email() && d.email == email()
+        && d.role == 'OWNER' && d.active == true
+        && d.name is string && d.name.size() > 1
+        && d.keys().hasOnly(['role', 'name', 'email', 'company', 'phone', 'billingAddress', 'vatNumber',
+                             'notifyEmail', 'notifySms', 'active', 'createdAt', 'lastLoginAt', 'notifyAdmin']);
+    }
+
     match /profiles/{id} {
       allow read: if isAdmin() || (signedIn() && id == email());
-      allow create, delete: if isAdmin();
+      allow create: if isAdmin() || validSelfSignup(id);
+      allow delete: if isAdmin();
       allow update: if isAdmin()
         || (isOwner() && id == email()
             && onlyChanges(['name', 'company', 'phone', 'billingAddress', 'vatNumber', 'notifyEmail', 'notifySms', 'lastLoginAt']));
     }
 
+    // Lieu ajouté par le client : à son nom, au tarif par défaut, marqué « à vérifier » par le gestionnaire.
+    function validOwnerGite() {
+      let d = request.resource.data;
+      return owns(d) && d.active == true && d.pendingReview == true
+        && d.price == get(/databases/$(database)/documents/settings/main).data.defaultPrice
+        && d.name is string && d.name.size() > 1
+        && d.keys().hasOnly(['name', 'kind', 'ownerEmail', 'ownerName', 'address', 'postalCode', 'city', 'accessInfo',
+                             'notes', 'bedrooms', 'bathrooms', 'capacity', 'bedSets', 'towelSets', 'price', 'durationMin',
+                             'defaultTime', 'color', 'icalFeeds', 'active', 'pendingReview', 'notifyAdmin',
+                             'createdAt', 'updatedAt']);
+    }
+
     match /gites/{id} {
       allow read: if isAdmin() || (isOwner() && owns(resource.data));
-      allow create, delete: if isAdmin();
+      allow create: if isAdmin() || (isOwner() && validOwnerGite());
+      allow delete: if isAdmin();
       allow update: if isAdmin()
         || (isOwner() && owns(resource.data)
-            && onlyChanges(['name', 'address', 'postalCode', 'city', 'accessInfo', 'notes', 'bedrooms',
-                            'bathrooms', 'capacity', 'defaultTime', 'icalFeeds', 'updatedAt']));
+            && onlyChanges(['name', 'kind', 'address', 'postalCode', 'city', 'accessInfo', 'notes', 'bedrooms',
+                            'bathrooms', 'capacity', 'bedSets', 'towelSets', 'defaultTime', 'color', 'icalFeeds', 'updatedAt']));
     }
 
     // Demande de passage créée par un client : statut « en attente », prix du gîte, son propre gîte.
@@ -85,8 +110,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Lisible par tous : coordonnées légales de l'entreprise (page « Mentions légales »)
     match /settings/{id} {
-      allow read: if signedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
 

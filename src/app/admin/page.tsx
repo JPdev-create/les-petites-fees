@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { collection, limit, orderBy, query } from "firebase/firestore";
-import { Inbox, CalendarCheck, AlertTriangle, Receipt, Check, Plus, Send, Shirt, ArrowRight, Sparkles, Activity as ActivityIcon, CalendarDays } from "lucide-react";
+import { Inbox, CalendarCheck, AlertTriangle, Receipt, Check, Plus, Send, Shirt, ArrowRight, Sparkles, Activity as ActivityIcon, CalendarDays, Home } from "lucide-react";
 import { useAdmin, missingPlanning } from "@/components/admin-data";
 import { MissionDialog, MissionLine, NewMissionDialog } from "@/components/mission-admin";
 import { Empty, PageHeader, Stat, Spinner } from "@/components/ui";
@@ -97,6 +97,17 @@ export default function Dashboard() {
           </p>
           <a href="#planning" className="btn-sm btn bg-rose-600 text-white hover:bg-rose-700">Voir la liste</a>
         </div>
+      )}
+
+      {gites.some((g) => g.pendingReview) && (
+        <Link href="/admin/lieux/" className="mb-6 flex animate-in items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
+          <Home className="size-5 shrink-0" />
+          <p className="flex-1">
+            {(() => { const n = gites.filter((g) => g.pendingReview).length; return <><strong>{n > 1 ? `${n} nouveaux lieux` : "Nouveau lieu"}</strong> ajouté{n > 1 ? "s" : ""} par vos clients :{" "}</>; })()}
+            {gites.filter((g) => g.pendingReview).map((g) => `${g.name} (${g.ownerName})`).join(", ")}. Vérifiez le tarif.
+          </p>
+          <ArrowRight className="size-4" />
+        </Link>
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">

@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, CalendarPlus, History, UserRound } from "lucide-react";
+import { Home, CalendarPlus, History, UserRound, House } from "lucide-react";
 import { AuthProvider, RequireRole } from "@/components/auth";
 import { OwnerDataProvider } from "@/components/owner-data";
 import { Logo, Splash, ThemeToggle } from "@/components/ui";
@@ -11,7 +11,8 @@ import { Logo, Splash, ThemeToggle } from "@/components/ui";
 const TABS = [
   { href: "/espace/", label: "Accueil", icon: Home, exact: true },
   { href: "/espace/planifier/", label: "Encoder", icon: CalendarPlus },
-  { href: "/espace/historique/", label: "Mes passages", icon: History },
+  { href: "/espace/historique/", label: "Passages", icon: History },
+  { href: "/espace/lieux/", label: "Mes lieux", icon: House },
   { href: "/espace/compte/", label: "Compte", icon: UserRound },
 ];
 
@@ -22,7 +23,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-dvh">
       <header className="no-print sticky top-0 z-40 bg-brand-800 pt-[env(safe-area-inset-top)] shadow-lg shadow-brand-950/10">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-2.5">
-          <Link href="/espace/"><Logo className="!h-10" /></Link>
+          <Link href="/espace/"><Logo className="!h-12" /></Link>
           <nav className="hidden items-center gap-1 sm:flex">
             {TABS.map((t) => (
               <Link key={t.href} href={t.href} className={`rounded-xl px-3 py-2 text-sm font-medium transition ${active(t) ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"}`}>
@@ -34,7 +35,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 pb-32 pt-6 sm:pb-12">{children}</main>
-      <nav className="no-print safe-bottom fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-[var(--border)] bg-[var(--surface)]/95 pt-1.5 backdrop-blur sm:hidden">
+      <nav className="no-print safe-bottom fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-[var(--border)] bg-[var(--surface)]/95 pt-1.5 backdrop-blur sm:hidden">
         {TABS.map((t) => (
           <Link key={t.href} href={t.href} className={`flex flex-col items-center gap-0.5 py-1 text-[11px] font-medium ${active(t) ? "text-brand-700 dark:text-brand-300" : "text-zinc-500"}`}>
             <t.icon className="size-[22px]" strokeWidth={active(t) ? 2.4 : 2} />

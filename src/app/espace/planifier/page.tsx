@@ -126,7 +126,14 @@ export default function PlanPage() {
   };
 
   if (loading || (gites.length && !gite)) return <div className="grid h-64 place-items-center"><Spinner className="size-6 text-brand-500" /></div>;
-  if (!gites.length) return <p className="muted py-10 text-center">Aucun lieu n&apos;est encore associé à votre compte.</p>;
+  if (!gites.length)
+    return (
+      <div className="py-12 text-center">
+        <p className="font-semibold">Ajoutez d&apos;abord votre lieu</p>
+        <p className="muted mt-1 text-sm">Il faut au moins un gîte, appartement ou bureau pour encoder des dates.</p>
+        <Link href="/espace/lieux/?ajouter=1" className="btn-primary btn-lg mt-6">Ajouter un lieu</Link>
+      </div>
+    );
 
   if (done) {
     const others = gites.filter((g) => g.id !== giteId);

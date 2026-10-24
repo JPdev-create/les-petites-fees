@@ -2,26 +2,29 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Home, MapPin, RefreshCw, AlertCircle, Building2 } from "lucide-react";
+import { Plus, Search, Home, MapPin, RefreshCw, AlertCircle, Building2, Phone, Mail } from "lucide-react";
 import { useAdmin, missingPlanning } from "@/components/admin-data";
 import { Empty, PageHeader } from "@/components/ui";
 import { KIND, currentPeriod, euros, formatDate, periodLabel, shiftPeriod, todayISO } from "@/lib/format";
 
 export default function PlacesPage() {
-  const { gites, missions, submissions } = useAdmin();
+  const { gites, missions, submissions, profiles } = useAdmin();
   const [q, setQ] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const today = todayISO();
   const next = shiftPeriod(currentPeriod(), 1);
   const missing = useMemo(() => new Set(missingPlanning(next, gites, missions, submissions).map((g) => g.id)), [next, gites, missions, submissions]);
 
-  const list = gites.filter((g) => (showInactive || g.active) && (!q || `${g.name} ${g.ownerName} ${g.city ?? ""} ${g.address}`.toLowerCase().includes(q.toLowerCase())));
+  const list = gites
+    .filter((g) => (showInactive || g.active) && (!q || `${g.name} ${g.ownerName} ${g.city ?? ""} ${g.address} ${g.ownerEmail}`.toLowerCase().includes(q.toLowerCase())))
+    .sort((a, b) => Number(!!b.pendingReview) - Number(!!a.pendingReview));
+  const toReview = gites.filter((g) => g.pendingReview).length;
 
   return (
     <>
       <PageHeader
         title="Gîtes & lieux"
-        subtitle={`${gites.filter((g) => g.active).length} lieux actifs`}
+        subtitle={`${gites.filter((g) => g.active).length} lieux actifs${toReview ? ` · ${toReview} à vérifier` : ""} — encodés par vos clients`}
         actions={<Link href="/admin/lieux/fiche/" className="btn-primary"><Plus className="size-4" /> Nouveau lieu</Link>}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -56,7 +59,16 @@ export default function PlacesPage() {
                   </div>
                   <span className="badge bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300">{KIND[g.kind]}</span>
                 </div>
-                <p className="muted mt-3 flex items-center gap-1.5 truncate text-sm"><MapPin className="size-3.5 shrink-0" /> {g.city || g.address}</p>
+                <p className="mt-3 flex items-start gap-1.5 text-sm"><MapPin className="muted mt-0.5 size-3.5 shrink-0" /> <span>{g.address}{g.postalCode || g.city ? `, ${g.postalCode ?? ""} ${g.city ?? ""}` : ""}</span></p>
+                {(() => {
+                  const o = profiles.find((p) => p.id === g.ownerEmail);
+                  return (
+                    <div className="muted mt-1.5 space-y-0.5 text-[13px]">
+                      {o?.phone && <p className="flex items-center gap-1.5"><Phone className="size-3.5 shrink-0" /> {o.phone}</p>}
+                      <p className="flex items-center gap-1.5 truncate"><Mail className="size-3.5 shrink-0" /> {g.ownerEmail}</p>
+                    </div>
+                  );
+                })()}
                 <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-xl bg-zinc-50 p-2.5 dark:bg-white/5">
                     <p className="muted">Prochain passage</p>
@@ -68,6 +80,7 @@ export default function PlacesPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">
+                  {g.pendingReview && <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300"><AlertCircle className="size-3" /> Nouveau · tarif à vérifier</span>}
                   {g.active && missing.has(g.id) && <span className="badge bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300"><AlertCircle className="size-3" /> Planning {periodLabel(next).split(" ")[0]} manquant</span>}
                   {g.icalFeeds?.length > 0 && (
                     <span className={`badge ${g.icalLastError ? "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300" : "bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300"}`}>

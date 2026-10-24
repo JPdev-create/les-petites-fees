@@ -154,11 +154,11 @@ export default function CalendarPage() {
                         <button
                           key={m.id}
                           onClick={(e) => { e.stopPropagation(); setOpen(m); }}
-                          className={`flex w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium ${m.status === "REQUESTED" ? "border border-dashed border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-200" : m.status === "DONE" ? "bg-emerald-50 text-emerald-900 line-through decoration-emerald-400/60 dark:bg-emerald-400/10 dark:text-emerald-200" : m.status === "CONFIRMED" ? "text-white" : "bg-zinc-100 text-zinc-500 line-through dark:bg-white/5"}`}
+                          className={`flex w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium ${m.status === "REQUESTED" ? "border border-dashed border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-200" : m.status === "DONE" ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-400/10 dark:text-emerald-200" : m.status === "CONFIRMED" ? "text-white" : "bg-zinc-100 text-zinc-500 line-through dark:bg-white/5"}`}
                           style={m.status === "CONFIRMED" ? { background: m.giteColor } : undefined}
                           title={`${m.giteName} · ${STATUS[m.status].label}`}
                         >
-                          {m.time && <span className="opacity-80">{m.time}</span>} <span className="truncate">{m.giteName}</span>
+                          {m.status === "DONE" ? <span aria-label="Effectué">✓</span> : m.time && <span className="opacity-80">{m.time}</span>} <span className="truncate">{m.giteName}</span>
                         </button>
                       ))}
                       {list.length > 3 && <p className="px-1 text-[11px] font-medium text-zinc-500">+ {list.length - 3} autre(s)</p>}

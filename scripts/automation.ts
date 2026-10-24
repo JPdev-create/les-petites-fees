@@ -93,6 +93,37 @@ async function notifyAdmins(s: Settings, people: Map<string, Profile>) {
   return snap.size;
 }
 
+/* ---------------- 2b. Inscriptions et nouveaux lieux ---------------- */
+async function newSignups(s: Settings, people: Map<string, Profile>) {
+  const [profs, gites] = await Promise.all([
+    db.collection("profiles").where("notifyAdmin", "==", true).get(),
+    db.collection("gites").where("notifyAdmin", "==", true).get(),
+  ]);
+  if (profs.empty && gites.empty) return 0;
+  const lines: string[] = [];
+  for (const d of profs.docs) {
+    const p = d.data() as Profile;
+    lines.push(`👤 Nouveau client : <strong>${p.name}</strong>${p.company ? ` (${p.company})` : ""} — ${p.email}${p.phone ? ` — ${p.phone}` : ""}`);
+  }
+  for (const d of gites.docs) {
+    const g = d.data() as Gite;
+    lines.push(`🏡 Nouveau lieu : <strong>${g.name}</strong> — ${g.address}${g.city ? `, ${g.city}` : ""} (client : ${g.ownerName}). Tarif provisoire : ${euros(g.price)} HTVA.`);
+  }
+  const admins = [...people.values()].filter((p) => p.role === "ADMIN" && p.active && p.notifyEmail);
+  for (const a of admins) {
+    await send(db, a.email, gites.empty ? "Nouveau client inscrit" : "Nouveau lieu à vérifier", {
+      title: gites.empty ? "Un nouveau client s'est inscrit" : "Nouveau lieu ajouté par un client",
+      intro: `Bonjour ${first(a.name)},`,
+      lines: [...lines, gites.empty ? "" : "Vérifiez les informations et fixez le tarif du passage, puis enregistrez la fiche."].filter(Boolean),
+      cta: { label: gites.empty ? "Voir les clients" : "Vérifier les lieux", url: `${APP_URL}/admin/${gites.empty ? "clients" : "lieux"}/` },
+    }, s, "NEW_REQUEST");
+  }
+  const batch = db.batch();
+  [...profs.docs, ...gites.docs].forEach((d) => batch.update(d.ref, { notifyAdmin: false }));
+  await batch.commit();
+  return profs.size + gites.size;
+}
+
 /* ---------------- 3. Notifications clients ---------------- */
 async function notifyOwners(s: Settings, people: Map<string, Profile>) {
   const snap = await db.collection("missions").where("notifyOwner", "in", ["CONFIRMED", "REFUSED", "MOVED", "CANCELLED"]).get();
@@ -278,6 +309,21 @@ async function monthlyReminders(s: Settings, people: Map<string, Profile>) {
   return results;
 }
 
+/* ---------------- 7. Durées de conservation (RGPD) ---------------- */
+async function purge() {
+  const limit = new Date(Date.now() - 365 * 86400000).toISOString();
+  let n = 0;
+  for (const [name, field] of [["mail", "createdAt"], ["activity", "at"]] as const) {
+    const old = await db.collection(name).where(field, "<", limit).limit(400).get();
+    if (old.empty) continue;
+    const batch = db.batch();
+    old.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    n += old.size;
+  }
+  return n;
+}
+
 /* ---------------- Exécution ---------------- */
 async function main() {
   const started = Date.now();
@@ -288,9 +334,11 @@ async function main() {
     file: await mailQueue(s, people),
     ical: await icalSync(s, force),
     admins: await notifyAdmins(s, people),
+    inscriptions: await newSignups(s, people),
     clients: await notifyOwners(s, people),
     factures: await invoiceMails(s, people),
     relances: await monthlyReminders(s, people),
+    purge: await purge(),
   };
   await db.doc("settings/main").set({ lastAutomationRun: now(), automationRuns: FieldValue.increment(1) }, { merge: true });
   console.log(`✓ Automatisations terminées en ${((Date.now() - started) / 1000).toFixed(1)} s`, JSON.stringify(report));
