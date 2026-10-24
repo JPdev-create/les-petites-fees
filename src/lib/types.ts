@@ -40,7 +40,9 @@ export type Gite = {
   capacity: number;
   bedSets: number;
   towelSets: number;
-  price: number; // centimes HTVA par passage
+  price: number; // centimes HTVA par passage (forfait, ou estimation si tarif horaire)
+  pricingMode?: "FLAT" | "HOURLY"; // absent = forfait
+  hourlyRate?: number; // centimes HTVA par heure
   durationMin: number;
   defaultTime?: string;
   color: string;
@@ -73,7 +75,9 @@ export type Mission = {
   ownerNote?: string | null;
   adminNote?: string | null;
   refuseReason?: string | null;
-  price: number;
+  price: number; // centimes HTVA (à l'heure : estimation, puis durée réelle × tarif)
+  workedMin?: number | null; // durée réelle (tarif horaire)
+  hourlyRate?: number | null; // tarif horaire appliqué
   invoiceId: string | null;
   notifyAdmin?: boolean;
   notifyOwner?: string | null; // CONFIRMED | REFUSED | MOVED | CANCELLED → e-mail à envoyer au client
@@ -152,6 +156,7 @@ export type Settings = {
   icalAutoConfirm: boolean;
   minNoticeHours: number;
   defaultPrice: number;
+  defaultHourlyRate: number;
   lastReminderRun?: string;
   lastAutomationRun?: string;
   syncRequestedAt?: string | null;
@@ -193,4 +198,5 @@ export const DEFAULT_SETTINGS: Settings = {
   icalAutoConfirm: true,
   minNoticeHours: 24,
   defaultPrice: 6500,
+  defaultHourlyRate: 3000,
 };

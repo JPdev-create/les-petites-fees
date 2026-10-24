@@ -64,7 +64,7 @@ export function InvoiceView({ inv, s }: { inv: Invoice; s: Settings }) {
           {inv.lines.map((l, i) => (
             <tr key={i} className="border-b border-zinc-200">
               <td className="py-2.5 pr-3">{l.label}</td>
-              <td className="py-2.5 text-right">{l.quantity}</td>
+              <td className="py-2.5 text-right">{l.quantity === 1 ? 1 : `${l.quantity.toLocaleString("fr-BE")} h`}</td>
               <td className="py-2.5 text-right">{euros(l.unitPrice)}</td>
               <td className="py-2.5 text-right font-medium">{euros(l.total)}</td>
             </tr>

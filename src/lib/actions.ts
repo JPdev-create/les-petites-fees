@@ -5,7 +5,8 @@ import {
 } from "firebase/firestore";
 import { sendSignInLinkToEmail } from "firebase/auth";
 import { fb, absoluteUrl } from "./firebase";
-import { formatDate, periodBounds, periodLabel, periodOf } from "./format";
+import { addDays, euros, formatDate, periodBounds, periodLabel, periodOf, todayISO } from "./format";
+import { durationLabel } from "./pricing";
 import type { Gite, Invoice, Mission, MissionStatus, Profile, Settings } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
@@ -78,6 +79,26 @@ export async function setMissionsStatus(ids: string[], status: MissionStatus, by
   await batch.commit();
   const labels: Record<string, string> = { CONFIRMED: "confirmé", REFUSED: "refusé", DONE: "marqué effectué", CANCELLED: "annulé", REQUESTED: "remis en attente" };
   await log(by, `${ids.length} passage(s) ${labels[status] ?? status}`);
+}
+
+/**
+ * Marque des passages comme effectués. Au tarif horaire, le prix devient
+ * durée réelle × tarif (durée fournie, sinon déjà saisie, sinon l'estimation du lieu).
+ */
+export async function completeMissions(list: { m: Mission; workedMin?: number }[], gites: Map<string, Gite>, by: string) {
+  const batch = writeBatch(db());
+  const t = now();
+  for (const { m, workedMin } of list) {
+    const g = gites.get(m.giteId);
+    const hourly = g?.pricingMode === "HOURLY" && (g.hourlyRate ?? 0) > 0;
+    const minutes = workedMin ?? m.workedMin ?? g?.durationMin ?? 0;
+    batch.update(doc(db(), "missions", m.id), {
+      status: "DONE", doneAt: m.doneAt ?? t, updatedAt: t, notifyAdmin: false,
+      ...(hourly ? { workedMin: minutes, hourlyRate: g!.hourlyRate, price: Math.round((g!.hourlyRate! * minutes) / 60) } : {}),
+    });
+  }
+  await batch.commit();
+  await log(by, `${list.length} passage(s) marqué(s) effectué(s)`);
 }
 
 export async function moveMission(m: Mission, date: string, time: string | null, by: string, note?: string) {
@@ -219,16 +240,19 @@ export async function generateInvoices(period: string, missions: Mission[], prof
 
   const batch = writeBatch(db());
   let i = 0;
-  const issue = new Date();
-  const due = new Date(Date.now() + settings.paymentDays * 86400000);
+  // Dates locales (Belgique) : une facture faite à 0 h 30 ne doit pas être datée de la veille
+  const issue = `${todayISO()}T12:00:00`;
+  const due = `${addDays(todayISO(), settings.paymentDays)}T12:00:00`;
   for (const [email, list] of groups) {
     i++;
     const owner = profiles.find((p) => p.id === email);
     list.sort((a, b) => a.date.localeCompare(b.date));
-    const lines = list.map((m) => ({
-      label: `Nettoyage « ${m.giteName} » — ${formatDate(m.date)}${m.extraLinen ? " (avec linge supplémentaire)" : ""}`,
-      quantity: 1, unitPrice: m.price, total: m.price,
-    }));
+    const lines = list.map((m) => {
+      const label = `Nettoyage « ${m.giteName} » — ${formatDate(m.date)}${m.extraLinen ? " (avec linge supplémentaire)" : ""}`;
+      return m.workedMin && m.hourlyRate
+        ? { label: `${label} — ${durationLabel(m.workedMin)} à ${euros(m.hourlyRate)}/h`, quantity: Math.round((m.workedMin / 60) * 100) / 100, unitPrice: m.hourlyRate, total: m.price }
+        : { label, quantity: 1, unitPrice: m.price, total: m.price };
+    });
     const totalHT = lines.reduce((a, l) => a + l.total, 0);
     const vatRate = settings.vatFranchise ? 0 : settings.vatRate;
     const totalVAT = Math.round((totalHT * vatRate) / 100);
@@ -237,7 +261,7 @@ export async function generateInvoices(period: string, missions: Mission[], prof
       number: `${settings.invoicePrefix}${year}-${String(startSeq + i).padStart(4, "0")}`,
       ownerEmail: email, ownerName: owner?.name ?? list[0].ownerName, ownerCompany: owner?.company ?? "",
       ownerAddress: owner?.billingAddress ?? "", ownerVat: owner?.vatNumber ?? "",
-      period, issueDate: issue.toISOString(), dueDate: due.toISOString(), vatRate,
+      period, issueDate: issue, dueDate: due, vatRate,
       lines, totalHT, totalVAT, totalTTC: totalHT + totalVAT, status: "DRAFT", missionIds: list.map((m) => m.id),
     };
     batch.set(ref, invoice);

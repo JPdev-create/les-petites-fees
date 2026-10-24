@@ -65,9 +65,14 @@ export default function SettingsPage() {
             <Field label="Préfixe"><input className="input" value={s.invoicePrefix} onChange={(e) => set("invoicePrefix", e.target.value)} /></Field>
             <Field label="Délai (jours)"><input type="number" className="input" value={s.paymentDays} onChange={(e) => set("paymentDays", +e.target.value)} /></Field>
           </div>
-          <Field label="Prix par défaut d'un passage (HTVA €)" hint="Proposé à la création d'un nouveau lieu.">
-            <input type="number" step="0.01" className="input" value={s.defaultPrice / 100} onChange={(e) => set("defaultPrice", Math.round(+e.target.value * 100))} />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Forfait par défaut (HTVA €)" hint="Prix d'un passage pour un nouveau lieu.">
+              <input type="number" step="0.01" className="input" value={s.defaultPrice / 100} onChange={(e) => set("defaultPrice", Math.round(+e.target.value * 100))} />
+            </Field>
+            <Field label="Tarif horaire par défaut (HTVA €/h)" hint="Proposé quand un lieu passe « à l'heure ».">
+              <input type="number" step="0.5" className="input" value={s.defaultHourlyRate / 100} onChange={(e) => set("defaultHourlyRate", Math.round(+e.target.value * 100))} />
+            </Field>
+          </div>
         </section>
 
         <section className="card space-y-4 p-5">

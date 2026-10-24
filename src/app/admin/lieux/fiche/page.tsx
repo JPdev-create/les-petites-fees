@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Trash2, Plus, X, RefreshCw, Link2, Info, CalendarPlus, Phone, Mail, Navigation, UserRound, AlertCircle } from "lucide-react";
 import { useAdmin } from "@/components/admin-data";
 import { MissionDialog, MissionLine, NewMissionDialog } from "@/components/mission-admin";
-import { Field, PageHeader, Spinner, Toggle } from "@/components/ui";
+import { Field, PageHeader, Segmented, Spinner, Toggle } from "@/components/ui";
+import { durationLabel, giteUnitPrice, isHourly } from "@/lib/pricing";
 import { toast } from "@/components/toaster";
 import { useParam } from "@/lib/hooks";
 import { deleteGite, saveGite, saveSettings } from "@/lib/actions";
@@ -56,7 +57,7 @@ export default function PlaceForm() {
     setBusy(true);
     try {
       const feeds = f.icalFeeds.filter((x) => x.url.trim()).map((x) => ({ label: x.label.trim() || "iCal", url: x.url.trim() }));
-      const newId = await saveGite({ ...f, ownerName: owner.name, icalFeeds: feeds }, id, me.name);
+      const newId = await saveGite({ ...f, pricingMode: f.pricingMode ?? "FLAT", hourlyRate: f.hourlyRate ?? 0, price: giteUnitPrice(f), ownerName: owner.name, icalFeeds: feeds }, id, me.name);
       toast(id ? "Fiche enregistrée" : "Lieu créé ✨");
       if (!id) router.replace(`/admin/lieux/fiche/?id=${newId}`);
     } catch (err) {
@@ -199,17 +200,43 @@ export default function PlaceForm() {
           })()}
           <section className="card space-y-4 p-5">
             <h2 className="font-display font-semibold">Tarif & organisation</h2>
-            <Field label="Prix d'un passage (HTVA)">
-              <div className="relative">
-                <input type="number" min={0} step="0.01" className="input pr-10" value={f.price / 100} onChange={(e) => set("price", Math.round(+e.target.value * 100))} />
-                <span className="muted absolute right-3 top-1/2 -translate-y-1/2 text-sm">€</span>
-              </div>
-            </Field>
-            <p className="muted -mt-2 text-xs">{settings.vatFranchise ? "Franchise de TVA : prix final" : `${euros(Math.round(f.price * (1 + settings.vatRate / 100)))} TVAC (${settings.vatRate} %)`}</p>
+            <Segmented<"FLAT" | "HOURLY">
+              value={isHourly(f) ? "HOURLY" : "FLAT"}
+              onChange={(v) => setF((x) => (x ? { ...x, pricingMode: v, hourlyRate: x.hourlyRate || settings.defaultHourlyRate } : x))}
+              options={[{ value: "FLAT", label: "Forfait par passage" }, { value: "HOURLY", label: "À l'heure" }]}
+            />
+            {isHourly(f) ? (
+              <Field label="Tarif horaire (HTVA)">
+                <div className="relative">
+                  <input type="number" min={0} step="0.5" className="input pr-14" value={(f.hourlyRate ?? 0) / 100} onChange={(e) => set("hourlyRate", Math.round(+e.target.value * 100))} />
+                  <span className="muted absolute right-3 top-1/2 -translate-y-1/2 text-sm">€/h</span>
+                </div>
+              </Field>
+            ) : (
+              <Field label="Prix d'un passage (HTVA)">
+                <div className="relative">
+                  <input type="number" min={0} step="0.01" className="input pr-10" value={f.price / 100} onChange={(e) => set("price", Math.round(+e.target.value * 100))} />
+                  <span className="muted absolute right-3 top-1/2 -translate-y-1/2 text-sm">€</span>
+                </div>
+              </Field>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Heure habituelle"><input type="time" className="input" value={f.defaultTime ?? ""} onChange={(e) => set("defaultTime", e.target.value)} /></Field>
-              <Field label="Durée (min)"><input type="number" min={15} step={15} className="input" value={f.durationMin} onChange={(e) => set("durationMin", +e.target.value)} /></Field>
+              <Field label={isHourly(f) ? "Durée estimée" : "Durée (min)"}>
+                {isHourly(f) ? (
+                  <select className="input" value={f.durationMin} onChange={(e) => set("durationMin", +e.target.value)}>
+                    {Array.from({ length: 32 }, (_, i) => (i + 1) * 30).map((m) => <option key={m} value={m}>{durationLabel(m)}</option>)}
+                  </select>
+                ) : (
+                  <input type="number" min={15} step={15} className="input" value={f.durationMin} onChange={(e) => set("durationMin", +e.target.value)} />
+                )}
+              </Field>
             </div>
+            <p className="muted -mt-1 rounded-xl bg-zinc-50 px-3 py-2 text-xs dark:bg-white/5">
+              {isHourly(f)
+                ? <>Passage estimé à <strong className="text-zinc-800 dark:text-zinc-200">{euros(giteUnitPrice(f))} HTVA</strong> ({durationLabel(f.durationMin)} × {euros(f.hourlyRate ?? 0)}). La durée réelle est demandée quand vous marquez le passage comme effectué.</>
+                : settings.vatFranchise ? "Franchise de TVA : prix final." : <>{euros(Math.round(f.price * (1 + settings.vatRate / 100)))} TVAC ({settings.vatRate} %)</>}
+            </p>
             <div>
               <span className="label">Couleur dans le calendrier</span>
               <div className="flex flex-wrap gap-2">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Search, Home, MapPin, RefreshCw, AlertCircle, Building2, Phone, Mail } from "lucide-react";
 import { useAdmin, missingPlanning } from "@/components/admin-data";
 import { Empty, PageHeader } from "@/components/ui";
+import { priceLabel } from "@/lib/pricing";
 import { KIND, currentPeriod, euros, formatDate, periodLabel, shiftPeriod, todayISO } from "@/lib/format";
 
 export default function PlacesPage() {
@@ -76,7 +77,7 @@ export default function PlacesPage() {
                   </div>
                   <div className="rounded-xl bg-zinc-50 p-2.5 dark:bg-white/5">
                     <p className="muted">Tarif</p>
-                    <p className="mt-0.5 font-semibold">{euros(g.price)} HTVA</p>
+                    <p className="mt-0.5 font-semibold">{priceLabel(g)}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">

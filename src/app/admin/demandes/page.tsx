@@ -6,7 +6,7 @@ import { useAdmin } from "@/components/admin-data";
 import { MissionDialog, MissionLine } from "@/components/mission-admin";
 import { Empty, PageHeader, Segmented, Spinner } from "@/components/ui";
 import { toast } from "@/components/toaster";
-import { setMissionsStatus } from "@/lib/actions";
+import { completeMissions, setMissionsStatus } from "@/lib/actions";
 import { useParam } from "@/lib/hooks";
 import { todayISO } from "@/lib/format";
 import type { Mission } from "@/lib/types";
@@ -14,7 +14,7 @@ import type { Mission } from "@/lib/types";
 type Tab = "pending" | "past" | "upcoming" | "history";
 
 export default function RequestsPage() {
-  const { missions, me } = useAdmin();
+  const { missions, me, giteById } = useAdmin();
   const vue = useParam("vue");
   const [tab, setTab] = useState<Tab>("pending");
   const [q, setQ] = useState("");
@@ -49,7 +49,8 @@ export default function RequestsPage() {
     if (status === "REFUSED" && !confirm(`Refuser ${ids.length} demande(s) ? Les clients seront prévenus.`)) return;
     setBusy(true);
     try {
-      await setMissionsStatus(ids, status, me.name);
+      if (status === "DONE") await completeMissions(missions.filter((m) => sel.has(m.id)).map((m) => ({ m })), giteById, me.name);
+      else await setMissionsStatus(ids, status, me.name);
       toast(`${ids.length} passage(s) ${status === "CONFIRMED" ? "confirmé(s)" : status === "DONE" ? "marqué(s) effectué(s)" : "refusé(s)"}`);
       setSel(new Set());
     } catch {
