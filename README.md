@@ -10,6 +10,8 @@ pour **Les Petites Fées**, service de nettoyage à Marche-en-Famenne.
 
 Hébergé sur **GitHub Pages** (gratuit) · données dans **Firebase Firestore** (région Belgique) · automatisations par **GitHub Actions**.
 
+🌐 **Site :** https://jpdev-create.github.io/les-petites-fees/
+
 ---
 
 ## Architecture
