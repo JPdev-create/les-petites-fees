@@ -1,0 +1,97 @@
+rules_version = '2';
+
+// Les Petites Fées — règles de sécurité Firestore
+// Deux rôles : ADMIN (gestionnaire) et OWNER (client propriétaire).
+// Les profils sont indexés par adresse e-mail (en minuscules) : un client n'accède
+// qu'aux gîtes, passages, déclarations et factures liés à SON adresse e-mail vérifiée.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true;
+    }
+    function email() { return request.auth.token.email.lower(); }
+    function profilePath() { return /databases/$(database)/documents/profiles/$(email()); }
+    function hasProfile() { return signedIn() && exists(profilePath()); }
+    function profile() { return get(profilePath()).data; }
+    function isAdmin() { return hasProfile() && profile().role == 'ADMIN' && profile().active == true; }
+    function isOwner() { return hasProfile() && profile().role == 'OWNER' && profile().active == true; }
+    function owns(data) { return data.ownerEmail == email(); }
+    function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+    function gite(id) { return get(/databases/$(database)/documents/gites/$(id)).data; }
+    function isDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+
+    match /profiles/{id} {
+      allow read: if isAdmin() || (signedIn() && id == email());
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isOwner() && id == email()
+            && onlyChanges(['name', 'company', 'phone', 'billingAddress', 'vatNumber', 'notifyEmail', 'notifySms', 'lastLoginAt']));
+    }
+
+    match /gites/{id} {
+      allow read: if isAdmin() || (isOwner() && owns(resource.data));
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isOwner() && owns(resource.data)
+            && onlyChanges(['name', 'address', 'postalCode', 'city', 'accessInfo', 'notes', 'bedrooms',
+                            'bathrooms', 'capacity', 'defaultTime', 'icalFeeds', 'updatedAt']));
+    }
+
+    // Demande de passage créée par un client : statut « en attente », prix du gîte, son propre gîte.
+    function validOwnerRequest() {
+      let d = request.resource.data;
+      let g = gite(d.giteId);
+      return owns(d) && g.ownerEmail == email()
+        && d.status == 'REQUESTED' && d.source == 'OWNER'
+        && d.price == g.price && d.invoiceId == null && isDate(d.date)
+        && d.keys().hasOnly(['giteId', 'giteName', 'giteColor', 'ownerEmail', 'ownerName', 'date', 'time', 'status',
+                             'source', 'urgent', 'extraLinen', 'ownerNote', 'price', 'invoiceId', 'notifyAdmin',
+                             'createdAt', 'updatedAt']);
+    }
+
+    // Un client peut annuler un passage à venir, ou modifier une demande encore en attente.
+    function validOwnerUpdate() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return owns(before) && before.status in ['REQUESTED', 'CONFIRMED'] && (
+        (after.status == 'CANCELLED' && onlyChanges(['status', 'updatedAt', 'cancelledBy', 'notifyAdmin']))
+        || (before.status == 'REQUESTED' && after.status == 'REQUESTED' && isDate(after.date)
+            && onlyChanges(['date', 'time', 'ownerNote', 'urgent', 'extraLinen', 'updatedAt', 'notifyAdmin']))
+      );
+    }
+
+    match /missions/{id} {
+      allow read: if isAdmin() || (isOwner() && owns(resource.data));
+      allow create: if isAdmin() || (isOwner() && validOwnerRequest());
+      allow update: if isAdmin() || (isOwner() && validOwnerUpdate());
+      allow delete: if isAdmin();
+    }
+
+    // Déclaration « planning du mois encodé » / « aucun passage ce mois-ci »
+    match /submissions/{id} {
+      allow read: if isAdmin() || (isOwner() && owns(resource.data));
+      allow create, update: if isAdmin()
+        || (isOwner() && owns(request.resource.data)
+            && gite(request.resource.data.giteId).ownerEmail == email()
+            && id == request.resource.data.giteId + '_' + request.resource.data.period);
+      allow delete: if isAdmin() || (isOwner() && owns(resource.data));
+    }
+
+    match /invoices/{id} {
+      allow read: if isAdmin() || (isOwner() && owns(resource.data));
+      allow write: if isAdmin();
+    }
+
+    match /settings/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /stock/{id} { allow read, write: if isAdmin(); }
+    match /mail/{id} { allow read, write: if isAdmin(); }
+    match /activity/{id} { allow read, write: if isAdmin(); }
+  }
+}

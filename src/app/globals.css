@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* Charte Les Petites Fées : bleu canard + turquoise */
+  --color-brand-50: #eef7f8;
+  --color-brand-100: #d5ecef;
+  --color-brand-200: #afdae0;
+  --color-brand-300: #84c3cc;
+  --color-brand-400: #5eaab5;
+  --color-brand-500: #4a9aa8;
+  --color-brand-600: #3a7f8b;
+  --color-brand-700: #2f6873;
+  --color-brand-800: #275963;
+  --color-brand-900: #214c55;
+  --color-brand-950: #143238;
+
+  --radius-xl: 0.9rem;
+  --radius-2xl: 1.15rem;
+  --radius-3xl: 1.5rem;
+
+  --animate-in: fade-up 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop: pop 0.18s ease-out both;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pop {
+  0% { transform: scale(0.9); }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+:root {
+  --bg: #f6f8f9;
+  --surface: #ffffff;
+  --border: #e3e8ea;
+  color-scheme: light;
+}
+.dark {
+  --bg: #0c1416;
+  --surface: #121d20;
+  --border: #22313a;
+  color-scheme: dark;
+}
+
+html { -webkit-tap-highlight-color: transparent; }
+/* Les enfants de grille peuvent rétrécir (évite les débordements horizontaux sur mobile) */
+.grid > * { min-width: 0; }
+body {
+  background: var(--bg);
+  @apply text-zinc-900 antialiased dark:text-zinc-100;
+  font-feature-settings: "cv11", "ss01";
+}
+
+@utility card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 1px 2px rgba(16, 40, 48, 0.04);
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 h-10 text-sm font-semibold transition
+    active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none select-none whitespace-nowrap
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2;
+}
+@utility btn-primary { @apply btn bg-brand-700 text-white hover:bg-brand-800 shadow-sm shadow-brand-900/20; }
+@utility btn-secondary { @apply btn bg-white text-zinc-800 border border-zinc-200 hover:bg-zinc-50 dark:bg-white/5 dark:text-zinc-100 dark:border-white/10 dark:hover:bg-white/10; }
+@utility btn-ghost { @apply btn text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/5; }
+@utility btn-danger { @apply btn bg-rose-600 text-white hover:bg-rose-700; }
+@utility btn-success { @apply btn bg-emerald-600 text-white hover:bg-emerald-700; }
+@utility btn-lg { @apply h-13 px-6 text-base rounded-2xl; }
+@utility btn-sm { @apply h-8 px-3 text-xs rounded-lg; }
+@utility input {
+  @apply w-full h-11 rounded-xl border border-zinc-200 bg-white px-3.5 text-[15px] text-zinc-900 placeholder:text-zinc-400 transition
+    focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 disabled:opacity-60
+    dark:bg-white/5 dark:border-white/10 dark:text-zinc-100 dark:placeholder:text-zinc-500;
+}
+@utility label { @apply block text-[13px] font-medium text-zinc-700 dark:text-zinc-300 mb-1.5; }
+@utility hint { @apply text-xs text-zinc-500 dark:text-zinc-400 mt-1; }
+@utility badge { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap; }
+@utility muted { @apply text-zinc-500 dark:text-zinc-400; }
+@utility table-row { @apply border-t border-[var(--border)] hover:bg-zinc-50/70 dark:hover:bg-white/[0.02] transition-colors; }
+
+textarea.input { height: auto; padding-top: 0.625rem; padding-bottom: 0.625rem; min-height: 88px; }
+select.input {
+  appearance: none; padding-right: 2rem; background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+.dark select.input option { background: #121d20; }
+
+/* Impression des factures */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  .lg:pl-64 { padding-left: 0 !important; }
+  .print-page { box-shadow: none !important; border: 0 !important; margin: 0 !important; max-width: none !important; }
+  @page { size: A4; margin: 14mm; }
+}
+
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0.75rem); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
