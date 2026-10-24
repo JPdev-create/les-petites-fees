@@ -129,7 +129,7 @@ function PhonePreview() {
           </div>
         </div>
       </div>
-      <div className="absolute -left-20 top-28 flex -rotate-2 items-center gap-2.5 rounded-2xl bg-white px-4 py-3 text-sm text-zinc-900 shadow-xl">
+      <div className="absolute -right-16 bottom-24 flex -rotate-2 items-center gap-2.5 rounded-2xl bg-white px-4 py-3 text-sm text-zinc-900 shadow-xl">
         <span className="grid size-8 place-items-center rounded-full bg-emerald-500 text-white"><MailCheck className="size-4" /></span>
         <span><span className="block font-semibold">Confirmé ✓</span><span className="block text-xs text-zinc-500">sam. 7 novembre · 11:00</span></span>
       </div>
