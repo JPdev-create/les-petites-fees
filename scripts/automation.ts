@@ -14,13 +14,13 @@ process.env.TZ ||= "Europe/Brussels";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { initAdmin } from "./lib/admin";
 import { APP_URL, send, sendSms } from "./lib/mailer";
+import { adminRequestsEmail, adminSignupEmail, inviteEmail, invoiceEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
 import { isReservation, parseIcs } from "./lib/ical";
 import { DEFAULT_SETTINGS, type Gite, type Invoice, type Mission, type Profile, type Settings } from "../src/lib/types";
-import { addDays, capitalize, currentPeriod, euros, formatDate, periodBounds, periodLabel, shiftPeriod, todayISO } from "../src/lib/format";
+import { addDays, currentPeriod, formatDate, periodBounds, periodLabel, shiftPeriod, todayISO } from "../src/lib/format";
 
 const { db } = initAdmin();
 const now = () => new Date().toISOString();
-const first = (name: string) => name.split(" ")[0];
 
 async function loadSettings(): Promise<Settings> {
   const snap = await db.doc("settings/main").get();
@@ -32,7 +32,10 @@ async function profiles() {
   return new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() } as Profile]));
 }
 
-const line = (m: Mission) => `<strong>${capitalize(formatDate(m.date))}</strong>${m.time ? ` · ${m.time}` : ""} — ${m.giteName}`;
+const giteMap = async () => {
+  const snap = await db.collection("gites").get();
+  return new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() } as Gite]));
+};
 
 /* ---------------- 1. File d'e-mails ---------------- */
 async function mailQueue(s: Settings, people: Map<string, Profile>) {
@@ -43,18 +46,10 @@ async function mailQueue(s: Settings, people: Map<string, Profile>) {
     if (m.kind === "REMINDER" && p) {
       await reminderFor(p, shiftPeriod(currentPeriod(), 1), s, d.id);
     } else if (m.kind === "INVITE" && p) {
-      await send(db, p.email, `Votre espace ${s.companyName} est prêt`, {
-        title: "Bienvenue ✨",
-        intro: `Bonjour ${first(p.name)},`,
-        lines: [
-          `Votre espace client ${s.companyName} est prêt. Vous pouvez y encoder vos dates de nettoyage en quelques secondes, suivre vos passages et retrouver vos factures.`,
-          `Connectez-vous avec le compte Google de l'adresse <strong>${p.email}</strong> (ou demandez un lien de connexion par e-mail).`,
-          `Astuce : sur votre téléphone, ajoutez l'application à votre écran d'accueil pour l'ouvrir en un geste.`,
-        ],
-        cta: { label: "Ouvrir mon espace", url: `${APP_URL}/connexion/` },
-      }, s, "INVITE", d.id);
+      const [subject, email] = inviteEmail(p, s);
+      await send(db, p.email, subject, email, s, "INVITE", d.id);
     } else {
-      await send(db, m.to, m.subject, { title: m.subject, intro: m.text }, s, m.kind ?? "OTHER", d.id);
+      await send(db, m.to, m.subject, { title: m.subject, intro: m.text, cta: { label: "Accéder au site", url: `${APP_URL}/connexion/` } }, s, m.kind ?? "OTHER", d.id);
     }
   }
   return snap.size;
@@ -64,28 +59,13 @@ async function mailQueue(s: Settings, people: Map<string, Profile>) {
 async function notifyAdmins(s: Settings, people: Map<string, Profile>) {
   const snap = await db.collection("missions").where("notifyAdmin", "==", true).get();
   if (snap.empty) return 0;
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Mission);
+  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Mission).sort((a, b) => a.date.localeCompare(b.date));
   const created = items.filter((m) => m.status === "REQUESTED");
   const cancelled = items.filter((m) => m.status === "CANCELLED");
-  const admins = [...people.values()].filter((p) => p.role === "ADMIN" && p.active && p.notifyEmail);
-  const byOwner = (list: Mission[]) => {
-    const g = new Map<string, Mission[]>();
-    for (const m of list) g.set(m.ownerName, [...(g.get(m.ownerName) ?? []), m]);
-    return [...g.entries()].map(([o, l]) => `<strong>${o}</strong> — ${l.sort((a, b) => a.date.localeCompare(b.date)).map((m) => `${m.giteName} ${formatDate(m.date, "short")}${m.urgent ? " ⚡" : ""}`).join(", ")}`);
-  };
-  const parts: string[] = [];
-  if (created.length) parts.push(`${created.length} nouvelle(s) demande(s)`);
-  if (cancelled.length) parts.push(`${cancelled.length} annulation(s)`);
-  for (const a of admins) {
-    await send(db, a.email, `${capitalize(parts.join(" et "))}`, {
-      title: capitalize(parts.join(" et ")),
-      intro: `Bonjour ${first(a.name)},`,
-      lines: [
-        ...(created.length ? [`<strong>À valider :</strong>`, ...byOwner(created)] : []),
-        ...(cancelled.length ? [`<strong>Annulé par le client :</strong>`, ...byOwner(cancelled)] : []),
-      ],
-      cta: { label: created.length ? "Valider les demandes" : "Ouvrir le planning", url: `${APP_URL}/admin/demandes/` },
-    }, s, "NEW_REQUEST");
+  const gites = await giteMap();
+  for (const a of [...people.values()].filter((p) => p.role === "ADMIN" && p.active && p.notifyEmail)) {
+    const [subject, email] = adminRequestsEmail(a, created, cancelled, gites, people);
+    await send(db, a.email, subject, email, s, "NEW_REQUEST");
   }
   const batch = db.batch();
   snap.docs.forEach((d) => batch.update(d.ref, { notifyAdmin: false }));
@@ -100,23 +80,11 @@ async function newSignups(s: Settings, people: Map<string, Profile>) {
     db.collection("gites").where("notifyAdmin", "==", true).get(),
   ]);
   if (profs.empty && gites.empty) return 0;
-  const lines: string[] = [];
-  for (const d of profs.docs) {
-    const p = d.data() as Profile;
-    lines.push(`👤 Nouveau client : <strong>${p.name}</strong>${p.company ? ` (${p.company})` : ""} — ${p.email}${p.phone ? ` — ${p.phone}` : ""}`);
-  }
-  for (const d of gites.docs) {
-    const g = d.data() as Gite;
-    lines.push(`🏡 Nouveau lieu : <strong>${g.name}</strong> — ${g.address}${g.city ? `, ${g.city}` : ""} (client : ${g.ownerName}). Tarif provisoire : ${euros(g.price)} HTVA.`);
-  }
-  const admins = [...people.values()].filter((p) => p.role === "ADMIN" && p.active && p.notifyEmail);
-  for (const a of admins) {
-    await send(db, a.email, gites.empty ? "Nouveau client inscrit" : "Nouveau lieu à vérifier", {
-      title: gites.empty ? "Un nouveau client s'est inscrit" : "Nouveau lieu ajouté par un client",
-      intro: `Bonjour ${first(a.name)},`,
-      lines: [...lines, gites.empty ? "" : "Vérifiez les informations et fixez le tarif du passage, puis enregistrez la fiche."].filter(Boolean),
-      cta: { label: gites.empty ? "Voir les clients" : "Vérifier les lieux", url: `${APP_URL}/admin/${gites.empty ? "clients" : "lieux"}/` },
-    }, s, "NEW_REQUEST");
+  const clients = profs.docs.map((d) => ({ id: d.id, ...d.data() }) as Profile);
+  const places = gites.docs.map((d) => ({ id: d.id, ...d.data() }) as Gite);
+  for (const a of [...people.values()].filter((p) => p.role === "ADMIN" && p.active && p.notifyEmail)) {
+    const [subject, email] = adminSignupEmail(a, clients, places);
+    await send(db, a.email, subject, email, s, "NEW_REQUEST");
   }
   const batch = db.batch();
   [...profs.docs, ...gites.docs].forEach((d) => batch.update(d.ref, { notifyAdmin: false }));
@@ -133,24 +101,13 @@ async function notifyOwners(s: Settings, people: Map<string, Profile>) {
     const m = { id: d.id, ...d.data() } as Mission;
     groups.set(m.ownerEmail, [...(groups.get(m.ownerEmail) ?? []), m]);
   }
+  const gites = await giteMap();
   for (const [email, list] of groups) {
     const p = people.get(email);
     if (!p || !p.active || !p.notifyEmail) continue;
     list.sort((a, b) => a.date.localeCompare(b.date));
-    const ok = list.filter((m) => m.notifyOwner === "CONFIRMED");
-    const moved = list.filter((m) => m.notifyOwner === "MOVED");
-    const ko = list.filter((m) => m.notifyOwner === "REFUSED" || m.notifyOwner === "CANCELLED");
-    const lines: string[] = [];
-    if (ok.length) lines.push(`<strong>✅ Confirmé${ok.length > 1 ? "s" : ""}</strong>`, ...ok.map(line));
-    if (moved.length) lines.push(`<strong>📅 Date modifiée</strong>`, ...moved.map((m) => `${line(m)}${m.adminNote ? ` <em>(${m.adminNote})</em>` : ""}`));
-    if (ko.length) lines.push(`<strong>❌ Non disponible${ko.length > 1 ? "s" : ""}</strong>`, ...ko.map((m) => `${line(m)}${m.refuseReason ? ` — ${m.refuseReason}` : ""}`));
-    const subject = ko.length && !ok.length && !moved.length ? "Votre demande de nettoyage" : moved.length ? "Votre planning de nettoyage a été mis à jour" : `Nettoyage${ok.length > 1 ? "s" : ""} confirmé${ok.length > 1 ? "s" : ""} ✓`;
-    await send(db, p.email, subject, {
-      title: subject,
-      intro: `Bonjour ${first(p.name)},`,
-      lines: [ko.length ? "Voici la réponse à vos demandes :" : "Bonne nouvelle, c'est dans l'agenda :", ...lines, ...(ko.length ? ["Une autre date vous conviendrait ? Encodez-la en un instant, ou appelez-nous."] : [])],
-      cta: { label: "Voir mon planning", url: `${APP_URL}/espace/historique/` },
-    }, s, ko.length ? "REFUSAL" : "CONFIRMATION");
+    const [subject, mail, kind] = ownerUpdateEmail(p, list, gites, s);
+    await send(db, p.email, subject, mail, s, kind);
   }
   const batch = db.batch();
   snap.docs.forEach((d) => batch.update(d.ref, { notifyOwner: null }));
@@ -165,16 +122,8 @@ async function invoiceMails(s: Settings, people: Map<string, Profile>) {
     const inv = { id: d.id, ...d.data() } as Invoice;
     const p = people.get(inv.ownerEmail);
     if (p) {
-      await send(db, p.email, `Facture ${inv.number} — ${periodLabel(inv.period)}`, {
-        title: `Votre facture de ${periodLabel(inv.period)}`,
-        intro: `Bonjour ${first(p.name)},`,
-        lines: [
-          `Votre facture <strong>${inv.number}</strong> d'un montant de <strong>${euros(inv.totalTTC)} TVAC</strong> (${inv.lines.length} passage${inv.lines.length > 1 ? "s" : ""}) est disponible dans votre espace.`,
-          `Échéance : ${formatDate(inv.dueDate.slice(0, 10))}.${s.iban ? ` IBAN : ${s.iban}.` : ""}`,
-          "Merci pour votre confiance !",
-        ],
-        cta: { label: "Voir et télécharger la facture", url: `${APP_URL}/espace/facture/?id=${inv.id}` },
-      }, s, "INVOICE");
+      const [subject, email] = invoiceEmail(p, inv, s);
+      await send(db, p.email, subject, email, s, "INVOICE");
     }
     await d.ref.update({ notifyOwner: false });
   }
@@ -273,16 +222,8 @@ async function reminderFor(p: Profile, period: string, s: Settings, logId?: stri
     if (logId) await db.collection("mail").doc(logId).update({ status: "SENT", subject: "Relance inutile : planning déjà transmis", sentAt: now() });
     return false;
   }
-  const url = `${APP_URL}/espace/planifier/?mois=${period}`;
-  await send(db, p.email, `Vos dates de nettoyage pour ${periodLabel(period)} ?`, {
-    title: `${capitalize(periodLabel(period))} approche ✨`,
-    intro: `Bonjour ${first(p.name)},`,
-    lines: [
-      `Nous n'avons pas encore reçu vos dates de nettoyage de <strong>${periodLabel(period)}</strong> pour : <strong>${missing.join(", ")}</strong>.`,
-      `Cela prend moins de 30 secondes : touchez les jours voulus, puis « Envoyer ». Pas de passage ce mois-là ? Un seul bouton suffit pour nous le dire.`,
-    ],
-    cta: { label: "Encoder mes dates", url },
-  }, s, "REMINDER", logId);
+  const [subject, email, url] = reminderEmail(p, period, missing, s);
+  await send(db, p.email, subject, email, s, "REMINDER", logId);
   if (p.notifySms && p.phone) await sendSms(p.phone, `${s.companyName} : vos dates de nettoyage pour ${periodLabel(period)} ? Encodez-les en 30 s : ${url}`);
   return true;
 }
