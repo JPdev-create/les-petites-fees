@@ -95,7 +95,7 @@ export default function SettingsPage() {
               Elles s&apos;exécutent toutes les 30 minutes : envoi des e-mails, synchronisation Airbnb/Booking et relances.
             </p>
           </div>
-          <button className="btn-secondary" onClick={() => saveSettings({ syncRequestedAt: new Date().toISOString() }).then(() => toast("Synchronisation demandée"))}>
+          <button className="btn-secondary h-auto min-h-10 whitespace-normal py-2 text-left" onClick={() => saveSettings({ syncRequestedAt: new Date().toISOString() }).then(() => toast("Synchronisation demandée"))}>
             <RefreshCw className="size-4" /> Synchroniser les calendriers au prochain passage
           </button>
         </section>

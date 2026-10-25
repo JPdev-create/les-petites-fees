@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { Poppins } from "next/font/google";
 import { Toaster } from "@/components/toaster";
+import { ConfirmHost } from "@/components/confirm";
 import { PwaRegister } from "@/components/pwa";
 import "./globals.css";
 
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-dvh font-sans">
         {children}
         <Toaster />
+        <ConfirmHost />
         <PwaRegister />
       </body>
     </html>

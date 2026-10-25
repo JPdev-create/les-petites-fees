@@ -8,6 +8,7 @@ import { ownerCancel, ownerUpdateRequest } from "@/lib/actions";
 import { useOwner } from "./owner-data";
 import { Field, Modal, Spinner, StatusBadge, Toggle } from "./ui";
 import { toast } from "./toaster";
+import { askConfirm } from "@/components/confirm";
 
 /** Détail d'un passage côté client : modifier une demande en attente, ou annuler. */
 export function OwnerMissionSheet({ mission, onClose }: { mission: Mission | null; onClose: () => void }) {
@@ -95,7 +96,7 @@ export function OwnerMissionSheet({ mission, onClose }: { mission: Mission | nul
             <button
               className="inline-flex items-center gap-1.5 text-sm font-medium text-rose-600 hover:underline"
               disabled={busy}
-              onClick={() => confirm("Annuler ce passage ?") && run(() => ownerCancel(m), "Passage annulé")}
+              onClick={async () => (await askConfirm({ title: "Annuler ce passage ?", message: `${m.giteName} — ${formatDate(m.date)}. Nous serons prévenus de l'annulation.`, confirmLabel: "Oui, annuler", cancelLabel: "Garder", danger: true })) && run(() => ownerCancel(m), "Passage annulé")}
             >
               <XCircle className="size-4" /> Annuler ce passage
             </button>

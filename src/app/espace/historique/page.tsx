@@ -45,11 +45,11 @@ export default function HistoryPage() {
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">{capitalize(periodLabel(period))} · {list.length}</h2>
             <div className="card divide-y divide-[var(--border)] overflow-hidden">
               {list.map((m) => (
-                <button key={m.id} onClick={() => setOpen(m)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-zinc-50 dark:active:bg-white/5">
+                <button key={m.id} onClick={() => setOpen(m)} className={`flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-zinc-50 dark:active:bg-white/5 ${m.status === "CANCELLED" || m.status === "REFUSED" ? "opacity-60" : ""}`}>
                   <span className="h-9 w-1 rounded-full" style={{ background: m.giteColor }} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold">{capitalize(formatDate(m.date, "medium"))}{relativeDay(m.date) ? <span className="muted font-normal"> · {relativeDay(m.date)}</span> : null}</p>
-                    <p className="muted truncate text-[13px]">{gites.length > 1 ? `${m.giteName} · ` : ""}{m.time ?? "Horaire à convenir"}{m.source === "ICAL" ? ` · ${m.icalSource ?? "iCal"}` : ""}</p>
+                    <p className="font-semibold">{capitalize(formatDate(m.date, "medium"))}</p>
+                    <p className="muted truncate text-[13px]">{relativeDay(m.date) ? `${relativeDay(m.date)} · ` : ""}{gites.length > 1 ? `${m.giteName} · ` : ""}{m.time ?? "Horaire à convenir"}{m.source === "ICAL" ? ` · ${m.icalSource ?? "iCal"}` : ""}</p>
                   </div>
                   <StatusBadge status={m.status} />
                 </button>

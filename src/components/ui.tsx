@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Moon, Sun, X, Loader2, Sparkles } from "lucide-react";
 import { STATUS } from "@/lib/format";
@@ -126,17 +126,28 @@ export function Stat({ label, value, hint, icon: Icon, tone = "brand", href }: {
   return href ? <Link href={href}>{body}</Link> : body;
 }
 
+// Pile des fenêtres ouvertes : Échap ne ferme que celle du dessus,
+// et le défilement de la page n'est rendu qu'à la fermeture de la dernière.
+const modalStack: symbol[] = [];
+
 export function Modal({ open, onClose, title, children, footer, wide }: { open: boolean; onClose: () => void; title: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; wide?: boolean }) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const id = Symbol("modal");
+    modalStack.push(id);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && modalStack[modalStack.length - 1] === id) closeRef.current();
+    };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      modalStack.splice(modalStack.indexOf(id), 1);
+      if (!modalStack.length) document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true">

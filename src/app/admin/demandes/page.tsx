@@ -6,6 +6,7 @@ import { useAdmin } from "@/components/admin-data";
 import { MissionDialog, MissionLine } from "@/components/mission-admin";
 import { Empty, PageHeader, Segmented, Spinner } from "@/components/ui";
 import { toast } from "@/components/toaster";
+import { askConfirm } from "@/components/confirm";
 import { completeMissions, setMissionsStatus } from "@/lib/actions";
 import { useParam } from "@/lib/hooks";
 import { todayISO } from "@/lib/format";
@@ -46,7 +47,7 @@ export default function RequestsPage() {
   const bulk = async (status: "CONFIRMED" | "REFUSED" | "DONE") => {
     const ids = [...sel];
     if (!ids.length) return;
-    if (status === "REFUSED" && !confirm(`Refuser ${ids.length} demande(s) ? Les clients seront prévenus.`)) return;
+    if (status === "REFUSED" && !(await askConfirm({ title: `Refuser ${ids.length} demande${ids.length > 1 ? "s" : ""} ?`, message: "Les clients concernés seront prévenus par e-mail.", confirmLabel: "Refuser", danger: true }))) return;
     setBusy(true);
     try {
       if (status === "DONE") await completeMissions(missions.filter((m) => sel.has(m.id)).map((m) => ({ m })), giteById, me.name);
@@ -94,7 +95,11 @@ export default function RequestsPage() {
 
       <div className="card overflow-hidden">
         {list.length === 0 ? (
-          <Empty icon={tab === "pending" ? Sparkles : Inbox} title={tab === "pending" ? "Aucune demande en attente" : "Rien à afficher"} text={tab === "pending" ? "Tout est traité. Les nouvelles demandes arrivent ici en temps réel." : undefined} />
+          <Empty
+            icon={tab === "pending" || tab === "past" ? Sparkles : Inbox}
+            title={{ pending: "Aucune demande en attente", past: "Rien à clôturer", upcoming: "Aucun passage à venir", history: "Pas encore d'historique" }[tab]}
+            text={{ pending: "Tout est traité. Les nouvelles demandes arrivent ici en temps réel.", past: "Tous les passages passés sont marqués comme effectués. 👌", upcoming: "Les passages confirmés apparaîtront ici.", history: "Les passages effectués, refusés ou annulés apparaîtront ici." }[tab]}
+          />
         ) : (
           <>
             {tab !== "history" && (

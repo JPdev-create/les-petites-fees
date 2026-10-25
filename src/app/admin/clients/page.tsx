@@ -6,6 +6,7 @@ import { Plus, Search, Users, Mail, Phone, Home, Pencil, Trash2, ShieldCheck, Se
 import { useAdmin } from "@/components/admin-data";
 import { Empty, Field, Modal, PageHeader, Segmented, Spinner, Toggle } from "@/components/ui";
 import { toast } from "@/components/toaster";
+import { askConfirm } from "@/components/confirm";
 import { deleteProfile, saveProfile, queueMail } from "@/lib/actions";
 import { timeAgo } from "@/lib/format";
 import type { Profile, Role } from "@/lib/types";
@@ -103,7 +104,7 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-1">
                     <span className="muted mr-2 hidden text-xs md:block">{p.lastLoginAt ? `Vu ${timeAgo(p.lastLoginAt)}` : "Jamais connecté"}</span>
                     {p.role === "OWNER" && <button className="btn-ghost btn-sm" onClick={() => invite(p)} title="Envoyer une invitation"><Send className="size-3.5" /> <span className="hidden sm:inline">Inviter</span></button>}
-                    {p.role === "OWNER" && <Link href={`/admin/lieux/fiche/`} className="btn-ghost btn-sm" title="Ajouter un lieu"><Home className="size-3.5" /></Link>}
+                    {p.role === "OWNER" && <Link href={`/admin/lieux/fiche/?client=${encodeURIComponent(p.id)}`} className="btn-ghost btn-sm" title="Ajouter un lieu pour ce client"><Home className="size-3.5" /></Link>}
                     <button className="btn-ghost btn-sm" onClick={() => { const { id, ...rest } = p; void id; setEdit({ form: { ...empty(p.role), ...rest }, isNew: false }); }} aria-label="Modifier"><Pencil className="size-3.5" /></button>
                   </div>
                 </div>
@@ -126,7 +127,7 @@ export default function ClientsPage() {
                   const p = profiles.find((x) => x.id === edit.form.email);
                   if (!p) return;
                   if (gites.some((g) => g.ownerEmail === p.id)) return toast("Ce client a encore des lieux : désactivez-le plutôt.", "error");
-                  if (!confirm(`Supprimer le compte de ${p.name} ?`)) return;
+                  if (!(await askConfirm({ title: `Supprimer le compte de ${p.name} ?`, message: "La personne ne pourra plus se connecter. Ses factures déjà émises sont conservées.", confirmLabel: "Supprimer le compte", danger: true }))) return;
                   await deleteProfile(p, me.name);
                   toast("Compte supprimé");
                   setEdit(null);

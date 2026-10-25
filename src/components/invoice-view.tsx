@@ -31,7 +31,7 @@ export function InvoiceView({ inv, s }: { inv: Invoice; s: Settings }) {
         </div>
         <div className="text-right">
           <p className="font-display text-3xl font-semibold tracking-tight">Facture</p>
-          <p className="mt-1 font-mono text-sm">{inv.number}</p>
+          <p className="mt-1 font-mono text-sm">{inv.number || "Brouillon — n° attribué à l'envoi"}</p>
           <span className={`badge no-print mt-2 ${INVOICE_STATUS[inv.status].tone}`}>{INVOICE_STATUS[inv.status].label}</span>
         </div>
       </header>
@@ -86,7 +86,7 @@ export function InvoiceView({ inv, s }: { inv: Invoice; s: Settings }) {
             <p className="font-semibold">Paiement par virement avant le {formatDate(iso(inv.dueDate))}</p>
             <p className="mt-1 text-zinc-600">
               {s.iban ? <>IBAN <span className="font-mono">{s.iban}</span>{s.bic ? ` · BIC ${s.bic}` : ""} · </> : null}
-              Communication : <span className="font-mono font-semibold">{ogm}</span>
+              Communication : <span className="font-mono font-semibold">{inv.number ? ogm : "attribuée à l'envoi"}</span>
             </p>
           </>
         )}

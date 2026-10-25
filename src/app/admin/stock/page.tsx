@@ -6,6 +6,7 @@ import { Package, Plus, Minus, Shirt, AlertTriangle, Trash2, SprayCan } from "lu
 import { useAdmin } from "@/components/admin-data";
 import { Empty, Field, Modal, PageHeader, Segmented } from "@/components/ui";
 import { toast } from "@/components/toaster";
+import { askConfirm } from "@/components/confirm";
 import { useLive } from "@/lib/hooks";
 import { fb } from "@/lib/firebase";
 import { addDays, formatDate, startOfWeek, todayISO } from "@/lib/format";
@@ -119,7 +120,7 @@ export default function StockPage() {
         title={edit?.id ? edit.name : "Nouvel article"}
         footer={
           <>
-            {edit?.id && <button className="btn-ghost mr-auto text-rose-600" onClick={async () => { if (confirm("Supprimer cet article ?")) { await deleteDoc(doc(fb().db, "stock", edit.id!)); setEdit(null); } }}><Trash2 className="size-4" /> Supprimer</button>}
+            {edit?.id && <button className="btn-ghost mr-auto text-rose-600" onClick={async () => { if (await askConfirm({ title: `Supprimer « ${edit.name} » ?`, confirmLabel: "Supprimer", danger: true })) { await deleteDoc(doc(fb().db, "stock", edit.id!)); toast("Article supprimé"); setEdit(null); } }}><Trash2 className="size-4" /> Supprimer</button>}
             <button className="btn-ghost" onClick={() => setEdit(null)}>Annuler</button>
             <button className="btn-primary" onClick={save}>Enregistrer</button>
           </>

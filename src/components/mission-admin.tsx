@@ -10,6 +10,7 @@ import { useAdmin } from "./admin-data";
 import { Field, Modal, Spinner, StatusBadge, Toggle } from "./ui";
 import { MonthPicker } from "./month-picker";
 import { toast } from "./toaster";
+import { askConfirm } from "@/components/confirm";
 
 export function MissionLine({ m, onClick, showOwner = true, right }: { m: Mission; onClick?: () => void; showOwner?: boolean; right?: React.ReactNode }) {
   const rel = relativeDay(m.date);
@@ -223,7 +224,7 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
           {!m.invoiceId && (
             <button
               className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600 hover:underline"
-              onClick={() => confirm("Supprimer définitivement ce passage ?") && run(() => deleteMission(m.id), "Passage supprimé")}
+              onClick={async () => (await askConfirm({ title: "Supprimer ce passage ?", message: `${m.giteName} — ${formatDate(m.date)}. Cette action est définitive.`, confirmLabel: "Supprimer", danger: true })) && run(() => deleteMission(m.id), "Passage supprimé")}
             >
               <Trash2 className="size-3.5" /> Supprimer ce passage
             </button>

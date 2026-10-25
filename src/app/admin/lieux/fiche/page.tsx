@@ -9,6 +9,7 @@ import { MissionDialog, MissionLine, NewMissionDialog } from "@/components/missi
 import { Field, PageHeader, Segmented, Spinner, Toggle } from "@/components/ui";
 import { durationLabel, giteUnitPrice, isHourly } from "@/lib/pricing";
 import { toast } from "@/components/toaster";
+import { askConfirm } from "@/components/confirm";
 import { useParam } from "@/lib/hooks";
 import { deleteGite, saveGite, saveSettings } from "@/lib/actions";
 import { COLORS, KIND, euros, formatDateTime, todayISO } from "@/lib/format";
@@ -24,6 +25,7 @@ const empty = (price: number): Form => ({
 
 export default function PlaceForm() {
   const id = useParam("id");
+  const preClient = useParam("client");
   const router = useRouter();
   const { gites, owners, missions, me, settings, loading } = useAdmin();
   const existing = gites.find((g) => g.id === id);
@@ -39,7 +41,7 @@ export default function PlaceForm() {
       void _id;
       setF({ ...empty(settings.defaultPrice), ...rest, icalFeeds: rest.icalFeeds ?? [] });
     } else if (!id) {
-      setF(empty(settings.defaultPrice));
+      setF({ ...empty(settings.defaultPrice), ownerEmail: preClient ?? "" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, loading, existing?.updatedAt]);
@@ -47,6 +49,14 @@ export default function PlaceForm() {
   const history = useMemo(() => missions.filter((m) => m.giteId === id).sort((a, b) => b.date.localeCompare(a.date)), [missions, id]);
   const today = todayISO();
 
+  if (!loading && id && !existing)
+    return (
+      <div className="card mx-auto mt-10 max-w-md p-8 text-center">
+        <p className="font-display text-lg font-semibold">Lieu introuvable</p>
+        <p className="muted mt-1 text-sm">Ce lieu a peut-être été supprimé.</p>
+        <Link href="/admin/lieux/" className="btn-primary mt-5">Voir tous les lieux</Link>
+      </div>
+    );
   if (!f) return <div className="grid h-64 place-items-center"><Spinner className="size-6 text-brand-500" /></div>;
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((x) => (x ? { ...x, [k]: v } : x));
 
@@ -69,7 +79,7 @@ export default function PlaceForm() {
   };
 
   const remove = async () => {
-    if (!existing || !confirm(`Supprimer « ${existing.name} » ? Les passages à venir seront supprimés (l'historique facturé est conservé). Astuce : vous pouvez plutôt le désactiver.`)) return;
+    if (!existing || !(await askConfirm({ title: `Supprimer « ${existing.name} » ?`, message: "Les passages à venir de ce lieu seront supprimés ; l'historique facturé est conservé. Astuce : vous pouvez plutôt le désactiver (interrupteur « Lieu actif »).", confirmLabel: "Supprimer le lieu", danger: true }))) return;
     await deleteGite(existing, me.name);
     toast("Lieu supprimé");
     router.replace("/admin/lieux/");

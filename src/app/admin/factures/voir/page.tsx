@@ -7,8 +7,9 @@ import { useAdmin } from "@/components/admin-data";
 import { InvoiceView } from "@/components/invoice-view";
 import { Spinner } from "@/components/ui";
 import { toast } from "@/components/toaster";
+import { askConfirm } from "@/components/confirm";
 import { useLiveDoc, useParam } from "@/lib/hooks";
-import { deleteInvoice, updateInvoice } from "@/lib/actions";
+import { deleteInvoice, sendInvoice, updateInvoice } from "@/lib/actions";
 import type { Invoice } from "@/lib/types";
 
 export default function AdminInvoicePage() {
@@ -26,8 +27,8 @@ export default function AdminInvoicePage() {
         <Link href="/admin/factures/" className="btn-ghost -ml-3 mr-auto"><ArrowLeft className="size-4" /> Factures</Link>
         {inv.status === "DRAFT" && (
           <>
-            <button className="btn-ghost text-rose-600" onClick={async () => { if (!confirm("Supprimer ce brouillon ? Les passages redeviendront facturables.")) return; await deleteInvoice(inv, me.name); toast("Brouillon supprimé"); router.replace("/admin/factures/"); }}><Trash2 className="size-4" /> Supprimer</button>
-            <button className="btn-primary" onClick={() => updateInvoice(inv.id, { status: "SENT", sentAt: new Date().toISOString(), notifyOwner: true }).then(() => toast("Facture envoyée au client"))}><Send className="size-4" /> Envoyer au client</button>
+            <button className="btn-ghost text-rose-600" onClick={async () => { if (!(await askConfirm({ title: "Supprimer ce brouillon ?", message: "Les passages qu'il contient redeviendront facturables.", confirmLabel: "Supprimer", danger: true }))) return; await deleteInvoice(inv, me.name); toast("Brouillon supprimé"); router.replace("/admin/factures/"); }}><Trash2 className="size-4" /> Supprimer</button>
+            <button className="btn-primary" onClick={() => sendInvoice(inv).then((n) => toast(`Facture ${n} envoyée au client`), () => toast("Envoi impossible. Réessayez.", "error"))}><Send className="size-4" /> Envoyer au client</button>
           </>
         )}
         {inv.status === "SENT" && <button className="btn-success" onClick={() => updateInvoice(inv.id, { status: "PAID", paidAt: new Date().toISOString() }).then(() => toast("Paiement enregistré"))}><Check className="size-4" /> Marquer payée</button>}

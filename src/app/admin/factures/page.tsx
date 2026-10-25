@@ -8,7 +8,7 @@ import { useAdmin } from "@/components/admin-data";
 import { Empty, PageHeader, Spinner, Stat } from "@/components/ui";
 import { toast } from "@/components/toaster";
 import { useLive } from "@/lib/hooks";
-import { generateInvoices, updateInvoice } from "@/lib/actions";
+import { generateInvoices, sendInvoice, updateInvoice } from "@/lib/actions";
 import { INVOICE_STATUS, capitalize, currentPeriod, euros, formatDate, periodBounds, periodLabel, shiftPeriod } from "@/lib/format";
 import type { Invoice } from "@/lib/types";
 
@@ -40,13 +40,17 @@ export default function InvoicesPage() {
 
   const send = async (inv: Invoice) => {
     setBusy(inv.id);
-    await updateInvoice(inv.id, { status: "SENT", sentAt: new Date().toISOString(), notifyOwner: true });
-    toast(`Facture ${inv.number} envoyée à ${inv.ownerName}`);
+    try {
+      const n = await sendInvoice(inv);
+      toast(`Facture ${n} envoyée à ${inv.ownerName}`);
+    } catch {
+      toast("Envoi impossible. Réessayez.", "error");
+    }
     setBusy(null);
   };
 
   const exportCsv = () => {
-    const rows = [["Numéro", "Client", "Période", "Date", "HTVA", "TVA", "TVAC", "Statut"], ...invoices.data.map((i) => [i.number, i.ownerName, i.period, i.issueDate.slice(0, 10), (i.totalHT / 100).toFixed(2), (i.totalVAT / 100).toFixed(2), (i.totalTTC / 100).toFixed(2), INVOICE_STATUS[i.status].label])];
+    const rows = [["Numéro", "Client", "Période", "Date", "HTVA", "TVA", "TVAC", "Statut"], ...invoices.data.map((i) => [i.number || "brouillon", i.ownerName, i.period, i.issueDate.slice(0, 10), (i.totalHT / 100).toFixed(2), (i.totalVAT / 100).toFixed(2), (i.totalTTC / 100).toFixed(2), INVOICE_STATUS[i.status].label])];
     const csv = "﻿" + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -103,7 +107,7 @@ export default function InvoicesPage() {
                   const late = i.status === "SENT" && i.dueDate < new Date().toISOString();
                   return (
                     <tr key={i.id} className="table-row">
-                      <td className="whitespace-nowrap px-4 py-3 font-mono"><Link href={`/admin/factures/voir/?id=${i.id}`} className="hover:underline">{i.number}</Link></td>
+                      <td className="whitespace-nowrap px-4 py-3 font-mono"><Link href={`/admin/factures/voir/?id=${i.id}`} className="hover:underline">{i.number || <span className="muted italic">brouillon</span>}</Link></td>
                       <td className="px-4 py-3 font-medium">{i.ownerName}</td>
                       <td className="px-4 py-3">{capitalize(periodLabel(i.period))}</td>
                       <td className={`px-4 py-3 ${late ? "font-semibold text-rose-600" : ""}`}>{formatDate(i.dueDate.slice(0, 10), "short")}{late ? " · en retard" : ""}</td>

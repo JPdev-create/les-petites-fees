@@ -228,23 +228,11 @@ export async function generateInvoices(period: string, missions: Mission[], prof
   for (const m of todo) groups.set(m.ownerEmail, [...(groups.get(m.ownerEmail) ?? []), m]);
   if (!groups.size) return 0;
 
-  const year = new Date().getFullYear().toString();
-  const settingsRef = doc(db(), "settings", "main");
-  const startSeq = await runTransaction(db(), async (tx) => {
-    const snap = await tx.get(settingsRef);
-    const s = { ...DEFAULT_SETTINGS, ...(snap.data() ?? {}) } as Settings;
-    const cur = s.invoiceSeq?.[year] ?? 0;
-    tx.set(settingsRef, { invoiceSeq: { ...(s.invoiceSeq ?? {}), [year]: cur + groups.size } }, { merge: true });
-    return cur;
-  });
-
   const batch = writeBatch(db());
-  let i = 0;
   // Dates locales (Belgique) : une facture faite à 0 h 30 ne doit pas être datée de la veille
   const issue = `${todayISO()}T12:00:00`;
   const due = `${addDays(todayISO(), settings.paymentDays)}T12:00:00`;
   for (const [email, list] of groups) {
-    i++;
     const owner = profiles.find((p) => p.id === email);
     list.sort((a, b) => a.date.localeCompare(b.date));
     const lines = list.map((m) => {
@@ -258,7 +246,7 @@ export async function generateInvoices(period: string, missions: Mission[], prof
     const totalVAT = Math.round((totalHT * vatRate) / 100);
     const ref = doc(collection(db(), "invoices"));
     const invoice: Omit<Invoice, "id"> = {
-      number: `${settings.invoicePrefix}${year}-${String(startSeq + i).padStart(4, "0")}`,
+      number: "", // attribué à l'envoi (numérotation continue, sans trou)
       ownerEmail: email, ownerName: owner?.name ?? list[0].ownerName, ownerCompany: owner?.company ?? "",
       ownerAddress: owner?.billingAddress ?? "", ownerVat: owner?.vatNumber ?? "",
       period, issueDate: issue, dueDate: due, vatRate,
@@ -272,6 +260,32 @@ export async function generateInvoices(period: string, missions: Mission[], prof
   return groups.size;
 }
 
+/**
+ * Envoie un brouillon : attribue le numéro suivant de l'année (transaction : jamais de doublon
+ * ni de trou), date la facture du jour et la met en file pour l'e-mail au client.
+ */
+export async function sendInvoice(inv: Invoice) {
+  const today = todayISO();
+  const year = today.slice(0, 4);
+  const settingsRef = doc(db(), "settings", "main");
+  const invRef = doc(db(), "invoices", inv.id);
+  return runTransaction(db(), async (tx) => {
+    const [sSnap, iSnap] = await Promise.all([tx.get(settingsRef), tx.get(invRef)]);
+    const current = iSnap.data() as Invoice | undefined;
+    if (!current) throw new Error("Facture introuvable");
+    if (current.number) return current.number; // déjà numérotée
+    const st = { ...DEFAULT_SETTINGS, ...(sSnap.data() ?? {}) } as Settings;
+    const seq = (st.invoiceSeq?.[year] ?? 0) + 1;
+    const number = `${st.invoicePrefix}${year}-${String(seq).padStart(4, "0")}`;
+    tx.set(settingsRef, { invoiceSeq: { ...(st.invoiceSeq ?? {}), [year]: seq } }, { merge: true });
+    tx.update(invRef, {
+      number, status: "SENT", sentAt: new Date().toISOString(), notifyOwner: true,
+      issueDate: `${today}T12:00:00`, dueDate: `${addDays(today, st.paymentDays)}T12:00:00`,
+    });
+    return number;
+  });
+}
+
 export async function updateInvoice(id: string, patch: Partial<Invoice>) {
   await updateDoc(doc(db(), "invoices", id), patch);
 }
@@ -281,7 +295,7 @@ export async function deleteInvoice(inv: Invoice, by: string) {
   inv.missionIds.forEach((mid) => batch.update(doc(db(), "missions", mid), { invoiceId: null }));
   batch.delete(doc(db(), "invoices", inv.id));
   await batch.commit();
-  await log(by, `Facture ${inv.number} supprimée (passages libérés)`);
+  await log(by, `Brouillon de facture de ${inv.ownerName} supprimé (passages libérés)`);
 }
 
 /* ------------------------------ Divers ------------------------------ */

@@ -153,7 +153,7 @@ function LoginInner() {
           }}
           className="mx-auto mt-10 flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
         >
-          <Mail className="size-4" /> Pas de compte Google ? Recevoir un lien par e-mail
+          <Mail className="size-4" /> Pas de compte Google ? Recevoir un lien par e&#8209;mail
         </button>
       )}
       <p className="muted mt-10 text-center text-[11px] leading-relaxed">
