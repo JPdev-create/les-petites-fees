@@ -51,8 +51,10 @@ try {
     "--no-pdf-header-footer",
     "--print-to-pdf-no-header",
     "--virtual-time-budget=15000",
+    "--force-dark-mode=false",
+    "--blink-settings=preferredColorScheme=1",
     `--print-to-pdf=${PDF}`,
-    `http://localhost:${PORT}/aide/`,
+    `http://localhost:${PORT}/aide/?pdf=1`,
   ], { timeout: 120000 });
   const size = (await stat(PDF)).size;
   console.log(`✓ Guide PDF généré : public/guide-client.pdf (${Math.round(size / 1024)} Ko)`);

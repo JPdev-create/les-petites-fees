@@ -108,11 +108,20 @@ select.input {
 
 /* Guide client : impression / PDF (couleurs conservées, sections non coupées) */
 @media print {
-  .guide { background: #fff !important; }
-  .guide-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .guide .card, .guide .bg-brand-50 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .guide-section { break-inside: avoid; page-break-inside: avoid; }
-  .guide main { padding-bottom: 0 !important; }
+  .guide { background: #fff !important; color: #27272a !important; font-size: 11pt; }
+  .guide-head img { height: 4.5rem !important; }
+  .guide * { box-shadow: none !important; }
+  .guide-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 14px; }
+  .guide-head > div:last-child { padding-bottom: 1.5rem !important; }
+  .guide .card { background: #fff !important; border: 1px solid #d9e3e5 !important; }
+  .guide .bg-brand-50 { background: #eef7f8 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .guide main { padding: 1.25rem 0 0 !important; max-width: none !important; }
+  .guide main > div { row-gap: 0 !important; }
+  /* Les sections peuvent continuer sur la page suivante ; seuls les petits blocs restent groupés */
+  .guide-section { margin-top: 1.6rem !important; }
+  .guide h2 { font-size: 14pt !important; break-after: avoid; page-break-after: avoid; }
+  .guide .card, .guide .bg-brand-50, .guide ul, .guide li, .guide p { break-inside: avoid; page-break-inside: avoid; }
+  .guide a { color: #2f6873 !important; text-decoration: none; }
 }
 
 /* Impression */

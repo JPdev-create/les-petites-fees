@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, LogIn, Home, CalendarPlus, CalendarRange, Copy, CalendarX2, History, XCircle, BellRing, Smartphone, UserRound, Phone, Mail, Download, Printer, CheckCircle2, Clock, Ban, Sparkles, RefreshCw,
@@ -15,6 +16,24 @@ import { BASE_PATH } from "@/lib/firebase";
 export default function HelpPage() {
   const s = useSettings();
   const tel = s.companyPhone.replace(/\s/g, "");
+
+  // Impression / PDF : toujours en mode clair, même si l'appareil est en mode sombre
+  useEffect(() => {
+    const html = document.documentElement;
+    let wasDark = false;
+    const toLight = () => {
+      wasDark = html.classList.contains("dark");
+      html.classList.remove("dark");
+    };
+    const restore = () => wasDark && html.classList.add("dark");
+    if (new URLSearchParams(window.location.search).has("pdf")) toLight();
+    window.addEventListener("beforeprint", toLight);
+    window.addEventListener("afterprint", restore);
+    return () => {
+      window.removeEventListener("beforeprint", toLight);
+      window.removeEventListener("afterprint", restore);
+    };
+  }, []);
 
   return (
     <div className="guide min-h-dvh">
