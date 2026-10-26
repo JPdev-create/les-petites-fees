@@ -12,7 +12,8 @@
     "automation": "tsx scripts/automation.ts",
     "create-admin": "tsx scripts/create-admin.ts",
     "deploy:rules": "firebase deploy --only firestore",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "guide:pdf": "next build && node scripts/guide-pdf.mjs"
   },
   "dependencies": {
     "firebase": "^12.3.0",

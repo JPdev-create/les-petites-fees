@@ -106,7 +106,16 @@ select.input {
 .dark .legal a { color: var(--color-brand-300); }
 .legal dt { font-weight: 500; color: var(--color-zinc-500); }
 
-/* Impression des factures */
+/* Guide client : impression / PDF (couleurs conservées, sections non coupées) */
+@media print {
+  .guide { background: #fff !important; }
+  .guide-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .guide .card, .guide .bg-brand-50 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .guide-section { break-inside: avoid; page-break-inside: avoid; }
+  .guide main { padding-bottom: 0 !important; }
+}
+
+/* Impression */
 @media print {
   .no-print { display: none !important; }
   body { background: #fff !important; color: #000 !important; }

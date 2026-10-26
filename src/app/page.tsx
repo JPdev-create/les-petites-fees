@@ -93,6 +93,7 @@ export default function Landing() {
           <Link href="/legal/#confidentialite" className="hover:underline">Confidentialité</Link>
           <Link href="/legal/#cookies" className="hover:underline">Cookies</Link>
           <Link href="/legal/#conditions" className="hover:underline">Conditions d&apos;utilisation</Link>
+          <Link href="/aide/" className="hover:underline">Guide client</Link>
         </div>
       </footer>
     </div>

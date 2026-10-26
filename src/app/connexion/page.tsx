@@ -159,6 +159,7 @@ function LoginInner() {
       <p className="muted mt-10 text-center text-[11px] leading-relaxed">
         En vous connectant, vous acceptez nos <Link href="/legal/#conditions" className="underline">conditions d&apos;utilisation</Link> et
         notre <Link href="/legal/#confidentialite" className="underline">politique de confidentialité</Link>.
+        <br /><Link href="/aide/" className="mt-2 inline-block font-medium text-brand-700 underline dark:text-brand-300">Comment ça marche ?</Link>
       </p>
     </Shell>
   );

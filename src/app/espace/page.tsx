@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarPlus, CheckCircle2, Clock, Phone, Mail, ArrowRight, Sparkles, CircleDashed, Home } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Clock, Phone, Mail, ArrowRight, Sparkles, CircleDashed, Home, CircleHelp } from "lucide-react";
 import { useOwner } from "@/components/owner-data";
 import { OwnerMissionSheet } from "@/components/owner-mission";
 import { InstallPrompt } from "@/components/pwa";
@@ -112,6 +112,15 @@ export default function OwnerHome() {
           })}
         </div>
       </section>
+
+      <Link href="/aide/" className="card flex items-center gap-3 p-4">
+        <span className="grid size-10 place-items-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"><CircleHelp className="size-5" /></span>
+        <span className="flex-1">
+          <span className="block font-semibold">Comment ça marche ?</span>
+          <span className="muted block text-sm">Le guide pas à pas de votre espace</span>
+        </span>
+        <ArrowRight className="size-4 text-zinc-400" />
+      </Link>
 
       {/* Contact */}
       <section className="card p-4">

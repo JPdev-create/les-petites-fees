@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, CalendarPlus, History, UserRound, House } from "lucide-react";
+import { Home, CalendarPlus, History, UserRound, House, CircleHelp } from "lucide-react";
 import { AuthProvider, RequireRole } from "@/components/auth";
 import { OwnerDataProvider } from "@/components/owner-data";
 import { Logo, Splash, ThemeToggle } from "@/components/ui";
@@ -31,7 +31,10 @@ function Shell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
-          <ThemeToggle className="!text-white hover:!bg-white/10" />
+          <div className="flex items-center gap-1">
+            <Link href="/aide/" className="btn-ghost size-9 px-0 !text-white hover:!bg-white/10" aria-label="Comment ça marche ?" title="Comment ça marche ?"><CircleHelp className="size-[18px]" /></Link>
+            <ThemeToggle className="!text-white hover:!bg-white/10" />
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 pb-32 pt-6 sm:pb-12">{children}</main>
