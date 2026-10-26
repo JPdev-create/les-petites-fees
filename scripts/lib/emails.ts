@@ -1,7 +1,7 @@
 // Contenu des e-mails automatiques : chaque message donne toutes les infos utiles
 // (quoi, où, quand, combien) et un bouton qui mène directement à la bonne page.
 import type { Gite, Mission, Profile, Settings } from "../../src/lib/types";
-import { capitalize, euros, formatDate, periodLabel } from "../../src/lib/format";
+import { capitalize, euros, formatDate, periodLabel, missionWhen } from "../../src/lib/format";
 import { APP_URL, type Email, type EmailItem } from "./mailer";
 
 const first = (name: string) => name.split(" ")[0];
@@ -15,7 +15,7 @@ const where = (g?: Gite) => (g ? `${g.address}${g.city ? `, ${g.postalCode ?? ""
 /** Ligne « passage » : date en titre, puis heure · lieu · adresse */
 export function visitItem(m: Mission, g?: Gite, extra?: string | null): EmailItem {
   return {
-    title: capitalize(formatDate(m.date)),
+    title: capitalize(m.dateTo ? missionWhen(m, "long") : formatDate(m.date)),
     meta: [m.time ? `vers ${m.time}` : "horaire à convenir", m.giteName, where(g), m.urgent ? "⚡ urgent" : "", extra ?? ""].filter(Boolean).join(" · "),
   };
 }
@@ -108,7 +108,7 @@ export function adminRequestsEmail(a: Profile, created: Mission[], cancelled: Mi
   const row = (m: Mission): EmailItem => {
     const owner = people.get(m.ownerEmail);
     return {
-      title: `${m.giteName} — ${capitalize(formatDate(m.date, "medium"))}${m.time ? ` · ${m.time}` : ""}`,
+      title: `${m.giteName} — ${capitalize(missionWhen(m))}${m.time && !m.dateTo ? ` · ${m.time}` : ""}`,
       meta: [
         `${m.ownerName}${owner?.phone ? ` (${owner.phone})` : ""}`,
         where(gites.get(m.giteId)),

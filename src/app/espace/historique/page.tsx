@@ -5,7 +5,7 @@ import { History } from "lucide-react";
 import { useOwner } from "@/components/owner-data";
 import { OwnerMissionSheet } from "@/components/owner-mission";
 import { Empty, Segmented, StatusBadge } from "@/components/ui";
-import { capitalize, formatDate, periodLabel, relativeDay, todayISO } from "@/lib/format";
+import { capitalize, formatDate, periodLabel, relativeDay, todayISO, missionWhen } from "@/lib/format";
 import type { Mission } from "@/lib/types";
 
 export default function HistoryPage() {
@@ -48,7 +48,7 @@ export default function HistoryPage() {
                 <button key={m.id} onClick={() => setOpen(m)} className={`flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-zinc-50 dark:active:bg-white/5 ${m.status === "CANCELLED" || m.status === "REFUSED" ? "opacity-60" : ""}`}>
                   <span className="h-9 w-1 rounded-full" style={{ background: m.giteColor }} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold">{capitalize(formatDate(m.date, "medium"))}</p>
+                    <p className="font-semibold">{capitalize(missionWhen(m))}</p>
                     <p className="muted truncate text-[13px]">{relativeDay(m.date) ? `${relativeDay(m.date)} · ` : ""}{gites.length > 1 ? `${m.giteName} · ` : ""}{m.time ?? "Horaire à convenir"}{m.source === "ICAL" ? ` · ${m.icalSource ?? "iCal"}` : ""}</p>
                   </div>
                   <StatusBadge status={m.status} />

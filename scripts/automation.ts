@@ -218,9 +218,11 @@ async function monthlyReminders(s: Settings, people: Map<string, Profile>) {
   const day = Number(today.slice(8));
   if (new Date().getHours() < 9) return null; // pas d'e-mail en pleine nuit
   const results: Record<string, number> = {};
-  for (const [n, d] of [[1, s.reminderDay1], [2, s.reminderDay2]] as const) {
+  // Échéances atteintes et pas encore traitées ce mois-ci. S'il y en a plusieurs (les automatisations
+  // n'ont pas tourné entre le 20 et le 25, par exemple), une seule relance part : la plus récente.
+  const due = ([[1, s.reminderDay1], [2, s.reminderDay2]] as const).filter(([n, d]) => d && day >= d && (s.lastReminderRun ?? "") < `${today.slice(0, 7)}#${n}`);
+  for (const [n] of due.slice(-1)) {
     const key = `${today.slice(0, 7)}#${n}`;
-    if (!d || day < d || (s.lastReminderRun ?? "") >= key) continue;
     await db.doc("settings/main").set({ lastReminderRun: key }, { merge: true });
     s.lastReminderRun = key;
     let sent = 0;

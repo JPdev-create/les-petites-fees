@@ -51,8 +51,10 @@ export default function Dashboard() {
   const confirmAll = async () => {
     setBusy("all");
     try {
-      await setMissionsStatus(pending.map((m) => m.id), "CONFIRMED", me.name);
-      toast(`${pending.length} demande(s) confirmée(s)`);
+      const fixed = pending.filter((m) => !m.dateTo);
+      const flexible = pending.length - fixed.length;
+      if (fixed.length) await setMissionsStatus(fixed.map((m) => m.id), "CONFIRMED", me.name);
+      toast(`${fixed.length} demande(s) confirmée(s)${flexible ? ` · ${flexible} période(s) : choisissez le jour dans chaque demande` : ""}`, flexible ? "info" : "success");
     } finally {
       setBusy(null);
     }
@@ -143,6 +145,7 @@ export default function Dashboard() {
                         className="btn-secondary btn-sm"
                         onClick={async (e) => {
                           e.stopPropagation();
+                          if (m.dateTo) return setOpen(m);
                           await setMissionsStatus([m.id], "CONFIRMED", me.name);
                           toast(`${m.giteName} — ${formatDate(m.date, "short")} confirmé`);
                         }}

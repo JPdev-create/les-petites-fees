@@ -51,7 +51,16 @@ export default function RequestsPage() {
     setBusy(true);
     try {
       if (status === "DONE") await completeMissions(missions.filter((m) => sel.has(m.id)).map((m) => ({ m })), giteById, me.name);
-      else await setMissionsStatus(ids, status, me.name);
+      else if (status === "CONFIRMED") {
+        const flexible = missions.filter((m) => sel.has(m.id) && m.dateTo).length;
+        const fixed = missions.filter((m) => sel.has(m.id) && !m.dateTo).map((m) => m.id);
+        if (fixed.length) await setMissionsStatus(fixed, status, me.name);
+        if (flexible) {
+          toast(`${fixed.length} confirmée(s) · ${flexible} période(s) : ouvrez chaque demande pour choisir le jour`, "info");
+          setSel(new Set());
+          return;
+        }
+      } else await setMissionsStatus(ids, status, me.name);
       toast(`${ids.length} passage(s) ${status === "CONFIRMED" ? "confirmé(s)" : status === "DONE" ? "marqué(s) effectué(s)" : "refusé(s)"}`);
       setSel(new Set());
     } catch {

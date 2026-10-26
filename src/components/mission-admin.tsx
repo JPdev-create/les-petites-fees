@@ -3,14 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Clock } from "lucide-react";
 import type { Gite, Mission, MissionStatus } from "@/lib/types";
-import { SOURCE, euros, formatDate, relativeDay, todayISO, periodOf, timeAgo, addDays } from "@/lib/format";
-import { deleteMission, moveMission, setMissionsStatus, updateMission, adminCreateMissions, completeMissions } from "@/lib/actions";
+import { SOURCE, euros, formatDate, relativeDay, todayISO, periodOf, timeAgo, addDays, missionWhen } from "@/lib/format";
+import { deleteMission, moveMission, setMissionsStatus, updateMission, adminCreateMissions, completeMissions, confirmOnDate } from "@/lib/actions";
 import { durationLabel, hourlyAmount, isHourly, missionPriceLabel } from "@/lib/pricing";
 import { useAdmin } from "./admin-data";
 import { Field, Modal, Spinner, StatusBadge, Toggle } from "./ui";
 import { MonthPicker } from "./month-picker";
 import { toast } from "./toaster";
 import { askConfirm } from "@/components/confirm";
+
+/** Jours strictement compris entre deux dates (affichage de la période) */
+function daysBetween(from: string, to: string) {
+  const out: string[] = [];
+  for (let d = addDays(from, 1); d < to; d = addDays(d, 1)) out.push(d);
+  return out;
+}
 
 export function MissionLine({ m, onClick, showOwner = true, right }: { m: Mission; onClick?: () => void; showOwner?: boolean; right?: React.ReactNode }) {
   const rel = relativeDay(m.date);
@@ -22,11 +29,12 @@ export function MissionLine({ m, onClick, showOwner = true, right }: { m: Missio
           <p className="truncate font-semibold">{m.giteName}</p>
           {m.urgent && <span className="badge bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300"><Zap className="size-3" />Urgent</span>}
           {m.extraLinen && <Shirt className="size-3.5 text-violet-500" aria-label="Linge supplémentaire" />}
+          {m.dateTo && <span className="badge bg-brand-100 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200">Période</span>}
           {m.source === "ICAL" && <span className="badge bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300">{m.icalSource || "iCal"}</span>}
         </div>
         <p className="muted truncate text-[13px]">
           {rel ? <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{rel} · </strong> : null}
-          {formatDate(m.date, "medium")}
+          {missionWhen(m)}
           {m.time ? ` · ${m.time}` : ""}
           {showOwner ? ` · ${m.ownerName}` : ""}
         </p>
@@ -40,7 +48,7 @@ export function MissionLine({ m, onClick, showOwner = true, right }: { m: Missio
 export function MissionDialog({ mission, onClose }: { mission: Mission | null; onClose: () => void }) {
   const { me, giteById, missions } = useAdmin();
   const live = mission ? missions.find((x) => x.id === mission.id) ?? mission : null;
-  const [mode, setMode] = useState<"view" | "move" | "refuse" | "done">("view");
+  const [mode, setMode] = useState<"view" | "move" | "refuse" | "done" | "pick">("view");
   const [worked, setWorked] = useState(120);
   const [date, setDate] = useState("");
   const [movePeriod, setMovePeriod] = useState(periodOf(todayISO()));
@@ -98,6 +106,13 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
               {busy ? <Spinner /> : <CheckCheck className="size-4" />} Valider {euros(hourlyAmount(gite?.hourlyRate ?? 0, worked))} HTVA
             </button>
           </>
+        ) : mode === "pick" ? (
+          <>
+            <button className="btn-ghost" onClick={() => setMode("view")}>Retour</button>
+            <button className="btn-primary" disabled={busy || !date} onClick={() => run(() => confirmOnDate(m, date, time || null, me.name), `Confirmé le ${formatDate(date, "medium")} — le client sera prévenu`)}>
+              {busy ? <Spinner /> : <Check className="size-4" />} Confirmer le {formatDate(date, "short")}
+            </button>
+          </>
         ) : mode === "move" ? (
           <>
             <button className="btn-ghost" onClick={() => setMode("view")}>Retour</button>
@@ -118,8 +133,8 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
               <>
                 <button className="btn-secondary" onClick={() => setMode("refuse")}><X className="size-4" /> Refuser</button>
                 <button className="btn-secondary" onClick={() => setMode("move")}><CalendarClock className="size-4" /> Autre date</button>
-                <button className="btn-primary" disabled={busy} onClick={() => run(() => setMissionsStatus([m.id], "CONFIRMED", me.name), "Passage confirmé ✓")}>
-                  <Check className="size-4" /> Confirmer
+                <button className="btn-primary" disabled={busy} onClick={() => (m.dateTo ? (setDate(m.date), setMovePeriod(periodOf(m.date)), setMode("pick")) : run(() => setMissionsStatus([m.id], "CONFIRMED", me.name), "Passage confirmé ✓"))}>
+                  <Check className="size-4" /> {m.dateTo ? "Choisir le jour" : "Confirmer"}
                 </button>
               </>
             )}
@@ -164,6 +179,12 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
             <span className="font-display text-xl font-semibold">{euros(hourlyAmount(gite?.hourlyRate ?? 0, worked))} <span className="text-xs font-normal">HTVA</span></span>
           </div>
         </div>
+      ) : mode === "pick" ? (
+        <div className="space-y-4">
+          <p className="muted text-sm">Le client accepte un passage <strong className="text-zinc-800 dark:text-zinc-200">{missionWhen(m).toLowerCase()}</strong>. Choisissez le jour : il recevra la confirmation avec cette date.</p>
+          <MonthPicker period={movePeriod} onPeriod={setMovePeriod} selected={new Set([date])} soft={new Set(daysBetween(m.date, m.dateTo ?? m.date))} onToggle={setDate} minDate={m.date < todayISO() ? todayISO() : m.date} maxDate={m.dateTo ?? m.date} />
+          <Field label="Heure"><input type="time" className="input" value={time} onChange={(e) => setTime(e.target.value)} /></Field>
+        </div>
       ) : mode === "move" ? (
         <div className="space-y-4">
           <p className="muted text-sm">Choisissez la nouvelle date. Le client recevra un e-mail avec la date modifiée.</p>
@@ -184,7 +205,7 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
             {m.urgent && <span className="badge bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300"><Zap className="size-3" /> Urgent</span>}
           </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-            <div><dt className="muted text-xs">Date</dt><dd className="font-semibold">{formatDate(m.date)}</dd></div>
+            <div><dt className="muted text-xs">{m.dateTo ? "Période souhaitée" : "Date"}</dt><dd className="font-semibold">{m.dateTo ? missionWhen(m) : formatDate(m.date)}</dd></div>
             <div><dt className="muted text-xs">Heure</dt><dd className="font-semibold">{m.time || "—"}</dd></div>
             <div><dt className="muted text-xs">Client</dt><dd className="font-semibold">{m.ownerName}</dd></div>
             <div><dt className="muted text-xs">Prix HTVA</dt><dd className="font-semibold">{m.workedMin ? missionPriceLabel(m) : hourly ? `≈ ${euros(m.price)} (${euros(gite!.hourlyRate!)}/h)` : euros(m.price)}</dd></div>

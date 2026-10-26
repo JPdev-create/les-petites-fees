@@ -26,7 +26,7 @@ export async function sendLoginLink(email: string, next = "") {
 
 /* ============================ Côté client ============================ */
 
-export type RequestEntry = { date: string; time?: string | null; note?: string; urgent?: boolean; extraLinen?: boolean };
+export type RequestEntry = { date: string; dateTo?: string | null; time?: string | null; note?: string; urgent?: boolean; extraLinen?: boolean };
 
 /** Crée les demandes du client et marque les mois concernés comme « encodés ». */
 export async function ownerRequestDates(owner: Profile, gite: Gite, entries: RequestEntry[]) {
@@ -35,12 +35,12 @@ export async function ownerRequestDates(owner: Profile, gite: Gite, entries: Req
   for (const e of entries) {
     batch.set(doc(collection(db(), "missions")), {
       giteId: gite.id, giteName: gite.name, giteColor: gite.color, ownerEmail: owner.id, ownerName: owner.name,
-      date: e.date, time: e.time || gite.defaultTime || null, status: "REQUESTED", source: "OWNER",
+      date: e.date, dateTo: e.dateTo && e.dateTo > e.date ? e.dateTo : null, time: e.time || gite.defaultTime || null, status: "REQUESTED", source: "OWNER",
       urgent: !!e.urgent, extraLinen: !!e.extraLinen, ownerNote: e.note?.trim() || null,
       price: gite.price, notifyAdmin: true, createdAt: t, updatedAt: t,
     });
   }
-  for (const period of new Set(entries.map((e) => periodOf(e.date)))) {
+  for (const period of new Set(entries.flatMap((e) => [periodOf(e.date), periodOf(e.dateTo || e.date)]))) {
     batch.set(doc(db(), "submissions", `${gite.id}_${period}`), { giteId: gite.id, ownerEmail: owner.id, period, empty: false, submittedAt: t });
   }
   await batch.commit();
@@ -103,10 +103,18 @@ export async function completeMissions(list: { m: Mission; workedMin?: number }[
 
 export async function moveMission(m: Mission, date: string, time: string | null, by: string, note?: string) {
   await updateDoc(doc(db(), "missions", m.id), {
-    date, time, status: "CONFIRMED", notifyOwner: "MOVED", notifyAdmin: false, updatedAt: now(),
+    date, dateTo: null, time, status: "CONFIRMED", notifyOwner: "MOVED", notifyAdmin: false, updatedAt: now(),
     adminNote: note ?? m.adminNote ?? null,
   });
   await log(by, `${m.giteName} : passage déplacé du ${formatDate(m.date, "short")} au ${formatDate(date, "short")}`);
+}
+
+/** Demande « entre … et … » : le gestionnaire fixe le jour, le client reçoit la confirmation. */
+export async function confirmOnDate(m: Mission, date: string, time: string | null, by: string) {
+  await updateDoc(doc(db(), "missions", m.id), {
+    date, dateTo: null, time, status: "CONFIRMED", notifyOwner: "CONFIRMED", notifyAdmin: false, updatedAt: now(),
+  });
+  await log(by, `${m.giteName} : confirmé le ${formatDate(date, "short")} (période demandée : ${formatDate(m.date, "short")} → ${formatDate(m.dateTo ?? m.date, "short")})`);
 }
 
 export async function updateMission(id: string, patch: Partial<Mission>) {

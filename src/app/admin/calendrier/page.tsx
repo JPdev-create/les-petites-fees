@@ -158,7 +158,7 @@ export default function CalendarPage() {
                           style={m.status === "CONFIRMED" ? { background: m.giteColor } : undefined}
                           title={`${m.giteName} · ${STATUS[m.status].label}`}
                         >
-                          {m.status === "DONE" ? <span aria-label="Effectué">✓</span> : m.time && <span className="opacity-80">{m.time}</span>} <span className="truncate">{m.giteName}</span>
+                          {m.status === "DONE" ? <span aria-label="Effectué">✓</span> : m.dateTo ? <span aria-label="Période">⇄</span> : m.time && <span className="opacity-80">{m.time}</span>} <span className="truncate">{m.giteName}</span>
                         </button>
                       ))}
                       {list.length > 3 && <p className="px-1 text-[11px] font-medium text-zinc-500">+ {list.length - 3} autre(s)</p>}

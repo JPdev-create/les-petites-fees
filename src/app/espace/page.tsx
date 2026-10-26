@@ -7,7 +7,7 @@ import { useOwner } from "@/components/owner-data";
 import { OwnerMissionSheet } from "@/components/owner-mission";
 import { InstallPrompt } from "@/components/pwa";
 import { Spinner, StatusBadge } from "@/components/ui";
-import { currentPeriod, euros, formatDate, periodLabel, relativeDay, shiftPeriod, todayISO, capitalize } from "@/lib/format";
+import { currentPeriod, euros, formatDate, periodLabel, relativeDay, shiftPeriod, todayISO, capitalize, missionWhen } from "@/lib/format";
 import type { Mission } from "@/lib/types";
 
 export default function OwnerHome() {
@@ -98,12 +98,12 @@ export default function OwnerHome() {
               <button key={m.id} onClick={() => setOpen(m)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-zinc-50 dark:active:bg-white/5">
                 <div className="grid w-12 shrink-0 place-items-center rounded-xl bg-zinc-50 py-1.5 dark:bg-white/5">
                   <span className="text-[10px] font-semibold uppercase text-zinc-500">{formatDate(m.date, "medium").split(" ")[0]}</span>
-                  <span className="font-display text-lg font-semibold leading-none">{Number(m.date.slice(8))}</span>
+                  <span className="font-display text-lg font-semibold leading-none">{Number(m.date.slice(8))}{m.dateTo ? <span className="text-xs">–{Number(m.dateTo.slice(8))}</span> : null}</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{gites.length > 1 ? m.giteName : rel ?? formatDate(m.date, "medium")}</p>
+                  <p className="truncate font-semibold">{gites.length > 1 ? m.giteName : m.dateTo ? missionWhen(m) : rel ?? formatDate(m.date, "medium")}</p>
                   <p className="muted flex items-center gap-1 text-[13px]">
-                    <Clock className="size-3.5" />{m.time ?? "Horaire à convenir"}{gites.length > 1 && rel ? ` · ${rel}` : ""}
+                    <Clock className="size-3.5" />{m.dateTo ? (gites.length > 1 ? missionWhen(m) : "Jour à fixer par l'équipe") : m.time ?? "Horaire à convenir"}{gites.length > 1 && rel && !m.dateTo ? ` · ${rel}` : ""}
                   </p>
                 </div>
                 <StatusBadge status={m.status} />

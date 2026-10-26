@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Clock, StickyNote, Zap, Shirt, Phone, XCircle, Save } from "lucide-react";
 import type { Mission } from "@/lib/types";
-import { capitalize, diffDays, formatDate, todayISO } from "@/lib/format";
+import { capitalize, diffDays, formatDate, todayISO, missionWhen } from "@/lib/format";
 import { ownerCancel, ownerUpdateRequest } from "@/lib/actions";
 import { useOwner } from "./owner-data";
 import { Field, Modal, Spinner, StatusBadge, Toggle } from "./ui";
@@ -63,10 +63,10 @@ export function OwnerMissionSheet({ mission, onClose }: { mission: Mission | nul
     >
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-3">
-          <p className="font-display text-xl font-semibold">{capitalize(formatDate(m.date))}</p>
+          <p className="font-display text-xl font-semibold">{capitalize(missionWhen(m, "long"))}</p>
           <StatusBadge status={m.status} />
         </div>
-        {m.status === "REQUESTED" && <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">Votre demande a bien été reçue. Vous recevrez un e-mail dès qu&apos;elle sera confirmée.</p>}
+        {m.status === "REQUESTED" && <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">{m.dateTo ? "Votre demande a bien été reçue. Nous choisirons un jour dans cette période et vous recevrez un e-mail de confirmation avec la date retenue." : "Votre demande a bien été reçue. Vous recevrez un e-mail dès qu'elle sera confirmée."}</p>}
         {m.status === "REFUSED" && m.refuseReason && <p className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-900 dark:bg-rose-400/10 dark:text-rose-200">{m.refuseReason}</p>}
 
         {editable ? (

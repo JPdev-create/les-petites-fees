@@ -22,6 +22,8 @@ service cloud.firestore {
     function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
     function gite(id) { return get(/databases/$(database)/documents/gites/$(id)).data; }
     function isDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    // Période souhaitée : absente, ou fin après le début
+    function validRange(d) { return !('dateTo' in d) || d.dateTo == null || (isDate(d.dateTo) && d.dateTo > d.date); }
 
     // Inscription libre : une personne connectée (e-mail vérifié) peut créer SON profil client,
     // jamais un profil gestionnaire ni celui de quelqu'un d'autre.
@@ -71,9 +73,9 @@ service cloud.firestore {
       let g = gite(d.giteId);
       return owns(d) && g.ownerEmail == email()
         && d.status == 'REQUESTED' && d.source == 'OWNER'
-        && d.price == g.price && isDate(d.date)
+        && d.price == g.price && isDate(d.date) && validRange(d)
         && d.keys().hasOnly(['giteId', 'giteName', 'giteColor', 'ownerEmail', 'ownerName', 'date', 'time', 'status',
-                             'source', 'urgent', 'extraLinen', 'ownerNote', 'price', 'notifyAdmin',
+                             'source', 'urgent', 'extraLinen', 'ownerNote', 'price', 'notifyAdmin', 'dateTo',
                              'createdAt', 'updatedAt']);
     }
 
@@ -84,7 +86,8 @@ service cloud.firestore {
       return owns(before) && before.status in ['REQUESTED', 'CONFIRMED'] && (
         (after.status == 'CANCELLED' && onlyChanges(['status', 'updatedAt', 'cancelledBy', 'notifyAdmin']))
         || (before.status == 'REQUESTED' && after.status == 'REQUESTED' && isDate(after.date)
-            && onlyChanges(['date', 'time', 'ownerNote', 'urgent', 'extraLinen', 'updatedAt', 'notifyAdmin']))
+            && validRange(after)
+            && onlyChanges(['date', 'dateTo', 'time', 'ownerNote', 'urgent', 'extraLinen', 'updatedAt', 'notifyAdmin']))
       );
     }
 

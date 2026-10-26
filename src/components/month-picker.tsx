@@ -10,14 +10,17 @@ export type DayMarker = { color: string; label?: string; status?: string };
  * Grandes cases (≥ 44 px) pensées pour le pouce : un toucher = un jour.
  */
 export function MonthPicker({
-  period, onPeriod, selected, onToggle, markers = {}, minDate, maxPeriod, minPeriod,
+  period, onPeriod, selected, soft, onToggle, markers = {}, minDate, maxDate, maxPeriod, minPeriod,
 }: {
   period: string;
   onPeriod: (p: string) => void;
   selected: Set<string>;
+  /** Jours compris dans une période (affichage clair) */
+  soft?: Set<string>;
   onToggle: (date: string) => void;
   markers?: Record<string, DayMarker[]>;
   minDate?: string;
+  maxDate?: string;
   minPeriod?: string;
   maxPeriod?: string;
 }) {
@@ -45,8 +48,9 @@ export function MonthPicker({
         ))}
         {weeks.flat().map((date, i) => {
           if (!date) return <div key={`x${i}`} />;
-          const disabled = !!minDate && date < minDate;
+          const disabled = (!!minDate && date < minDate) || (!!maxDate && date > maxDate);
           const isSel = selected.has(date);
+          const isSoft = !isSel && !!soft?.has(date);
           const isToday = date === today;
           const marks = markers[date] ?? [];
           return (
@@ -58,7 +62,7 @@ export function MonthPicker({
               aria-pressed={isSel}
               aria-label={formatDate(date)}
               className={`relative flex aspect-square min-h-11 flex-col items-center justify-center rounded-xl text-[15px] font-medium transition
-                ${isSel ? "animate-pop bg-brand-600 text-white shadow-md shadow-brand-700/30" : disabled ? "text-zinc-300 dark:text-zinc-600" : "hover:bg-brand-50 active:bg-brand-100 dark:hover:bg-white/5"}
+                ${isSel ? "animate-pop bg-brand-600 text-white shadow-md shadow-brand-700/30" : isSoft ? "bg-brand-100 text-brand-900 dark:bg-brand-500/25 dark:text-brand-100" : disabled ? "text-zinc-300 dark:text-zinc-600" : "hover:bg-brand-50 active:bg-brand-100 dark:hover:bg-white/5"}
                 ${isToday && !isSel ? "ring-2 ring-inset ring-brand-400" : ""}`}
             >
               {Number(date.slice(8))}

@@ -63,7 +63,8 @@ export type Mission = {
   giteColor: string;
   ownerEmail: string;
   ownerName: string;
-  date: string; // AAAA-MM-JJ
+  date: string; // AAAA-MM-JJ (date fixée, ou début de la période souhaitée)
+  dateTo?: string | null; // fin de la période souhaitée par le client (null = date fixe)
   time?: string | null;
   status: MissionStatus;
   source: MissionSource;

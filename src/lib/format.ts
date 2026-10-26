@@ -75,6 +75,15 @@ export function formatDate(iso: string, style: "long" | "short" | "day" | "mediu
   return `${DAYS_LONG[wd]} ${d.getDate()} ${month} ${d.getFullYear()}`;
 }
 
+/** « Entre le sam. 7 et le mar. 10 nov. » pour une période, sinon la date seule */
+export function missionWhen(m: { date: string; dateTo?: string | null }, style: "long" | "medium" = "medium") {
+  if (!m.dateTo || m.dateTo === m.date) return formatDate(m.date, style);
+  const a = parseISODate(m.date), b = parseISODate(m.dateTo);
+  const from = style === "long" ? formatDate(m.date, "day") : `${DAYS_SHORT[weekdayIndex(a)]} ${a.getDate()}`;
+  const to = style === "long" ? formatDate(m.dateTo) : `${DAYS_SHORT[weekdayIndex(b)]} ${b.getDate()} ${MONTHS_SHORT[b.getMonth()]}`;
+  return `Entre le ${from} et le ${to}`;
+}
+
 export function relativeDay(iso: string) {
   const diff = diffDays(iso, todayISO());
   if (diff === 0) return "Aujourd'hui";
