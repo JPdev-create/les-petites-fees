@@ -28,7 +28,7 @@ export default function JournalPage() {
       <div className="card overflow-hidden">
         {tab === "mail" ? (
           mails.data.length === 0 ? (
-            <Empty icon={Mail} title="Aucun e-mail" text="Les confirmations, relances et factures envoyées apparaîtront ici." />
+            <Empty icon={Mail} title="Aucun e-mail" text="Les confirmations, relances et alertes envoyées apparaîtront ici." />
           ) : (
             <div className="divide-y divide-[var(--border)]">
               {mails.data.map((m) => (

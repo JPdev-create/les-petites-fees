@@ -3,7 +3,6 @@
  *  1. File d'e-mails (relances manuelles, invitations)
  *  2. Nouvelles demandes / annulations → e-mail aux gestionnaires
  *  3. Confirmations, refus, déplacements → e-mail aux clients (regroupés)
- *  4. Factures envoyées → e-mail au client
  *  5. Synchronisation iCal Airbnb / Booking (toutes les heures, ou sur demande)
  *  6. Relances de fin de mois (jours configurés dans les paramètres)
  *
@@ -14,9 +13,9 @@ process.env.TZ ||= "Europe/Brussels";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { initAdmin } from "./lib/admin";
 import { APP_URL, send, sendSms } from "./lib/mailer";
-import { adminRequestsEmail, adminSignupEmail, inviteEmail, invoiceEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
+import { adminRequestsEmail, adminSignupEmail, inviteEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
 import { isReservation, parseIcs } from "./lib/ical";
-import { DEFAULT_SETTINGS, type Gite, type Invoice, type Mission, type Profile, type Settings } from "../src/lib/types";
+import { DEFAULT_SETTINGS, type Gite, type Mission, type Profile, type Settings } from "../src/lib/types";
 import { addDays, currentPeriod, formatDate, periodBounds, periodLabel, shiftPeriod, todayISO } from "../src/lib/format";
 
 const { db } = initAdmin();
@@ -115,21 +114,6 @@ async function notifyOwners(s: Settings, people: Map<string, Profile>) {
   return snap.size;
 }
 
-/* ---------------- 4. Factures ---------------- */
-async function invoiceMails(s: Settings, people: Map<string, Profile>) {
-  const snap = await db.collection("invoices").where("notifyOwner", "==", true).get();
-  for (const d of snap.docs) {
-    const inv = { id: d.id, ...d.data() } as Invoice;
-    const p = people.get(inv.ownerEmail);
-    if (p) {
-      const [subject, email] = invoiceEmail(p, inv, s);
-      await send(db, p.email, subject, email, s, "INVOICE");
-    }
-    await d.ref.update({ notifyOwner: false });
-  }
-  return snap.size;
-}
-
 /* ---------------- 5. Synchronisation iCal ---------------- */
 async function syncGite(g: Gite, s: Settings) {
   const today = todayISO();
@@ -153,7 +137,7 @@ async function syncGite(g: Gite, s: Settings) {
         if (!existing.empty) {
           const doc = existing.docs[0];
           const m = doc.data() as Mission;
-          if (m.date !== date && m.status !== "DONE" && !m.invoiceId) {
+          if (m.date !== date && m.status !== "DONE") {
             await doc.ref.update({ date, notifyOwner: m.status === "CONFIRMED" ? "MOVED" : null, adminNote: `Déplacé par ${feed.label} (avant : ${formatDate(m.date, "short")})`, updatedAt: now() });
             moved++;
           }
@@ -165,7 +149,7 @@ async function syncGite(g: Gite, s: Settings) {
           giteId: g.id, giteName: g.name, giteColor: g.color, ownerEmail: g.ownerEmail, ownerName: g.ownerName,
           date, time: g.defaultTime || null, status: s.icalAutoConfirm ? "CONFIRMED" : "REQUESTED", source: "ICAL",
           icalUid: uid, icalSource: feed.label, urgent: ev.start === date, extraLinen: false,
-          ownerNote: `Départ des voyageurs (${feed.label})`, adminNote: null, price: g.price, invoiceId: null,
+          ownerNote: `Départ des voyageurs (${feed.label})`, adminNote: null, price: g.price,
           notifyAdmin: !s.icalAutoConfirm, notifyOwner: null, createdAt: now(), updatedAt: now(),
         });
         created++;
@@ -277,7 +261,6 @@ async function main() {
     admins: await notifyAdmins(s, people),
     inscriptions: await newSignups(s, people),
     clients: await notifyOwners(s, people),
-    factures: await invoiceMails(s, people),
     relances: await monthlyReminders(s, people),
     purge: await purge(),
   };

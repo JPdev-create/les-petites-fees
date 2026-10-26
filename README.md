@@ -3,9 +3,9 @@
 Application de gestion des plannings de nettoyage de gîtes, appartements et bureaux
 pour **Les Petites Fées**, service de nettoyage à Marche-en-Famenne.
 
-- **Clients (propriétaires)** : connexion en un clic (Google, ou lien par e-mail), encodage des dates en moins de 30 secondes, historique, factures.
-- **Gestionnaires** : tableau de bord, calendrier global (mois / semaine / liste), validation des demandes en masse, alertes de fin de mois, synchronisation Airbnb / Booking (iCal), facturation mensuelle (communication structurée belge), linge & stock, journal des e-mails.
-- **Automatique** : relances des clients le 20 et le 25 du mois, e-mails de confirmation / refus / changement de date, envoi des factures.
+- **Clients (propriétaires)** : connexion en un clic (Google, ou lien par e-mail), encodage des dates en moins de 30 secondes, historique de leurs passages, gestion de leurs lieux.
+- **Gestionnaires** : tableau de bord, calendrier global (mois / semaine / liste), validation des demandes en masse, alertes de fin de mois, synchronisation Airbnb / Booking (iCal), tarifs au forfait ou à l'heure, linge & stock, journal des e-mails.
+- **Automatique** : relances des clients le 20 et le 25 du mois, e-mails de confirmation / refus / changement de date.
 - **PWA** : s'installe sur téléphone comme une application, consultable même avec un réseau faible.
 
 Hébergé sur **GitHub Pages** (gratuit) · données dans **Firebase Firestore** (région Belgique) · automatisations par **GitHub Actions**.
@@ -20,7 +20,7 @@ Hébergé sur **GitHub Pages** (gratuit) · données dans **Firebase Firestore**
 |---|---|
 | `src/app/espace/*` | Espace client (propriétaire) |
 | `src/app/admin/*` | Espace gestionnaire |
-| `firestore.rules` | **Sécurité** : chaque client n'accède qu'à ses lieux, passages et factures |
+| `firestore.rules` | **Sécurité** : chaque client n'accède qu'à ses lieux et à ses passages |
 | `scripts/automation.ts` | E-mails, synchro iCal, relances (lancé toutes les 30 min par GitHub Actions) |
 | `.github/workflows/deploy.yml` | Publication du site à chaque `git push` |
 | `.github/workflows/automation.yml` | Planificateur des automatisations |
@@ -77,13 +77,13 @@ Ajouter les secrets `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`
 2. Chaque nouveau lieu arrive **« à vérifier »** chez le gestionnaire (alerte + e-mail) avec le tarif par défaut : ouvrir la fiche dans *Gîtes & lieux*, ajuster le prix, **Enregistrer**. Le client ne peut jamais modifier un prix.
 3. Le client encode ses dates → elles arrivent dans **Demandes** (et par e-mail) → **Confirmer** (une par une ou toutes d'un coup). Le client est prévenu automatiquement.
 4. Après le passage : **Demandes → À clôturer → Marquer effectués**.
-5. En début de mois : **Factures → Générer les factures** → vérifier → **Envoyer** → **Payée** à réception.
+5. La facturation se fait en dehors de l'application (logiciel comptable / Peppol).
 
 Le gestionnaire peut aussi créer un client ou un lieu lui-même (*Clients → Nouveau client*, *Gîtes & lieux → Nouveau lieu*) puis l'**inviter**.
 
 ### Conformité
 - Page **Informations légales** (`/legal/`) : mentions légales (CDE), politique de confidentialité (RGPD), cookies, conditions d'utilisation.
-- À compléter dans *Paramètres* : **forme juridique, n° BCE, n° de TVA** (ou cocher le **régime de franchise** : factures sans TVA avec la mention légale).
+- À compléter dans *Paramètres* : **forme juridique, n° BCE, n° de TVA**.
 - Les clients peuvent **télécharger leurs données** et **demander la suppression** de leur compte (*Compte → Mes données*). Le journal des e-mails est purgé après 12 mois.
 
 ### Logo

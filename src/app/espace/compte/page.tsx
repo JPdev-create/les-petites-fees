@@ -2,20 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { LogOut, Save, Receipt, ChevronRight, ShieldCheck, Download, Trash2 } from "lucide-react";
+import { LogOut, Save, ShieldCheck, Download, Trash2 } from "lucide-react";
 import { useOwner } from "@/components/owner-data";
 import { logout } from "@/components/auth";
 import { Field, Spinner, Toggle } from "@/components/ui";
 import { toast } from "@/components/toaster";
 import { ownerSaveProfile } from "@/lib/actions";
-import { INVOICE_STATUS, capitalize, euros, periodLabel } from "@/lib/format";
 
 export default function AccountPage() {
-  const { me, gites, invoices, missions, settings } = useOwner();
+  const { me, gites, missions, settings } = useOwner();
 
   // Portabilité (art. 20 RGPD) : export de toutes les données du client
   const exportData = () => {
-    const data = { exportéLe: new Date().toISOString(), profil: me, lieux: gites, passages: missions, factures: invoices };
+    const data = { exportéLe: new Date().toISOString(), profil: me, lieux: gites, passages: missions };
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
     a.download = `mes-donnees-les-petites-fees-${new Date().toISOString().slice(0, 10)}.json`;
@@ -45,24 +44,6 @@ export default function AccountPage() {
         <button className="btn-ghost text-rose-600" onClick={() => logout()}><LogOut className="size-4" /> Déconnexion</button>
       </div>
 
-      {/* Factures */}
-      <section id="factures">
-        <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-semibold"><Receipt className="size-4 text-brand-600" /> Mes factures</h2>
-        <div className="card divide-y divide-[var(--border)] overflow-hidden">
-          {invoices.length === 0 && <p className="muted px-4 py-6 text-center text-sm">Aucune facture pour l&apos;instant.</p>}
-          {invoices.map((i) => (
-            <Link key={i.id} href={`/espace/facture/?id=${i.id}`} className="flex items-center gap-3 px-4 py-3.5">
-              <span className="min-w-0 flex-1">
-                <span className="block font-semibold">{capitalize(periodLabel(i.period))}</span>
-                <span className="muted block text-[13px]">{i.number} · {euros(i.totalTTC)} TVAC</span>
-              </span>
-              <span className={`badge ${INVOICE_STATUS[i.status].tone}`}>{INVOICE_STATUS[i.status].label}</span>
-              <ChevronRight className="size-4 text-zinc-400" />
-            </Link>
-          ))}
-        </div>
-      </section>
-
       {/* Coordonnées */}
       <section className="card space-y-4 p-5">
         <h2 className="font-display text-lg font-semibold">Mes coordonnées</h2>
@@ -72,7 +53,7 @@ export default function AccountPage() {
         </div>
         <Field label="E-mail de connexion" hint="Pour changer d'adresse, contactez-nous."><input className="input" disabled value={me.email} /></Field>
         <Field label="Société (facultatif)"><input className="input" value={p.company} onChange={(e) => setP({ ...p, company: e.target.value })} /></Field>
-        <Field label="Adresse de facturation"><textarea className="input min-h-[70px]" value={p.billingAddress} onChange={(e) => setP({ ...p, billingAddress: e.target.value })} /></Field>
+        <Field label="Adresse postale"><textarea className="input min-h-[70px]" value={p.billingAddress} onChange={(e) => setP({ ...p, billingAddress: e.target.value })} /></Field>
         <Field label="N° de TVA (facultatif)"><input className="input" value={p.vatNumber} onChange={(e) => setP({ ...p, vatNumber: e.target.value })} /></Field>
         <div className="space-y-3 rounded-2xl bg-zinc-50 p-4 dark:bg-white/5">
           <Toggle checked={p.notifyEmail} onChange={(v) => setP({ ...p, notifyEmail: v })} label="Confirmations et rappels par e-mail" />
@@ -85,7 +66,7 @@ export default function AccountPage() {
       <section className="card space-y-3 p-5">
         <h2 className="flex items-center gap-2 font-display text-lg font-semibold"><ShieldCheck className="size-4 text-brand-600" /> Mes données</h2>
         <p className="muted text-sm">
-          Vos données servent uniquement à organiser vos nettoyages et à vous facturer.{" "}
+          Vos données servent uniquement à organiser vos nettoyages.{" "}
           <Link href="/legal/#confidentialite" className="underline">Politique de confidentialité</Link>
         </p>
         <div className="flex flex-wrap gap-2">
@@ -97,7 +78,6 @@ export default function AccountPage() {
             <Trash2 className="size-4" /> Demander la suppression
           </a>
         </div>
-        <p className="hint">Les factures sont conservées 10 ans, comme l&apos;impose la loi comptable belge.</p>
       </section>
 
       <p className="muted pb-4 text-center text-xs">

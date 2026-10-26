@@ -7,7 +7,7 @@ import { sendSignInLinkToEmail } from "firebase/auth";
 import { fb, absoluteUrl } from "./firebase";
 import { addDays, euros, formatDate, periodBounds, periodLabel, periodOf, todayISO } from "./format";
 import { durationLabel } from "./pricing";
-import type { Gite, Invoice, Mission, MissionStatus, Profile, Settings } from "./types";
+import type { Gite, Mission, MissionStatus, Profile, Settings } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 const now = () => new Date().toISOString();
@@ -37,7 +37,7 @@ export async function ownerRequestDates(owner: Profile, gite: Gite, entries: Req
       giteId: gite.id, giteName: gite.name, giteColor: gite.color, ownerEmail: owner.id, ownerName: owner.name,
       date: e.date, time: e.time || gite.defaultTime || null, status: "REQUESTED", source: "OWNER",
       urgent: !!e.urgent, extraLinen: !!e.extraLinen, ownerNote: e.note?.trim() || null,
-      price: gite.price, invoiceId: null, notifyAdmin: true, createdAt: t, updatedAt: t,
+      price: gite.price, notifyAdmin: true, createdAt: t, updatedAt: t,
     });
   }
   for (const period of new Set(entries.map((e) => periodOf(e.date)))) {
@@ -125,7 +125,7 @@ export async function adminCreateMissions(gite: Gite, dates: string[], opts: { t
       giteId: gite.id, giteName: gite.name, giteColor: gite.color, ownerEmail: gite.ownerEmail, ownerName: gite.ownerName,
       date, time: opts.time || gite.defaultTime || null, status: opts.status, source: "ADMIN",
       urgent: false, extraLinen: false, ownerNote: null, adminNote: opts.note?.trim() || null,
-      price: gite.price, invoiceId: null, notifyAdmin: false, notifyOwner: opts.notify && opts.status === "CONFIRMED" ? "CONFIRMED" : null,
+      price: gite.price, notifyAdmin: false, notifyOwner: opts.notify && opts.status === "CONFIRMED" ? "CONFIRMED" : null,
       createdAt: t, updatedAt: t, doneAt: opts.status === "DONE" ? t : null,
     });
   }
@@ -145,7 +145,7 @@ export async function saveGite(data: Omit<Gite, "id">, id: string | null, by: st
     let n = 0;
     for (const d of snap.docs) {
       const m = d.data() as Mission;
-      if (m.status === "DONE" || m.invoiceId) continue;
+      if (m.status === "DONE") continue;
       if (m.giteName !== data.name || m.giteColor !== data.color || m.ownerEmail !== data.ownerEmail) {
         batch.update(d.ref, { giteName: data.name, giteColor: data.color, ownerEmail: data.ownerEmail, ownerName: data.ownerName });
         n++;
@@ -189,7 +189,7 @@ export async function deleteGite(g: Gite, by: string) {
   const batch = writeBatch(db());
   snap.docs.forEach((d) => {
     const m = d.data() as Mission;
-    if (!m.invoiceId && m.status !== "DONE") batch.delete(d.ref);
+    if (m.status !== "DONE") batch.delete(d.ref);
   });
   batch.delete(doc(db(), "gites", g.id));
   await batch.commit();
@@ -213,89 +213,6 @@ export async function ownerSaveProfile(id: string, patch: Partial<Profile>) {
 export async function deleteProfile(p: Profile, by: string) {
   await deleteDoc(doc(db(), "profiles", p.id));
   await log(by, `Compte supprimé : ${p.name}`);
-}
-
-/* ------------------------------ Factures ------------------------------ */
-
-/**
- * Génère une facture par client pour les passages effectués du mois et pas encore facturés.
- * Numérotation continue par année (obligation légale), sécurisée par transaction.
- */
-export async function generateInvoices(period: string, missions: Mission[], profiles: Profile[], settings: Settings, by: string, ownerEmail?: string) {
-  const { from, to } = periodBounds(period);
-  const todo = missions.filter((m) => m.status === "DONE" && !m.invoiceId && m.date >= from && m.date <= to && (!ownerEmail || m.ownerEmail === ownerEmail));
-  const groups = new Map<string, Mission[]>();
-  for (const m of todo) groups.set(m.ownerEmail, [...(groups.get(m.ownerEmail) ?? []), m]);
-  if (!groups.size) return 0;
-
-  const batch = writeBatch(db());
-  // Dates locales (Belgique) : une facture faite à 0 h 30 ne doit pas être datée de la veille
-  const issue = `${todayISO()}T12:00:00`;
-  const due = `${addDays(todayISO(), settings.paymentDays)}T12:00:00`;
-  for (const [email, list] of groups) {
-    const owner = profiles.find((p) => p.id === email);
-    list.sort((a, b) => a.date.localeCompare(b.date));
-    const lines = list.map((m) => {
-      const label = `Nettoyage « ${m.giteName} » — ${formatDate(m.date)}${m.extraLinen ? " (avec linge supplémentaire)" : ""}`;
-      return m.workedMin && m.hourlyRate
-        ? { label: `${label} — ${durationLabel(m.workedMin)} à ${euros(m.hourlyRate)}/h`, quantity: Math.round((m.workedMin / 60) * 100) / 100, unitPrice: m.hourlyRate, total: m.price }
-        : { label, quantity: 1, unitPrice: m.price, total: m.price };
-    });
-    const totalHT = lines.reduce((a, l) => a + l.total, 0);
-    const vatRate = settings.vatFranchise ? 0 : settings.vatRate;
-    const totalVAT = Math.round((totalHT * vatRate) / 100);
-    const ref = doc(collection(db(), "invoices"));
-    const invoice: Omit<Invoice, "id"> = {
-      number: "", // attribué à l'envoi (numérotation continue, sans trou)
-      ownerEmail: email, ownerName: owner?.name ?? list[0].ownerName, ownerCompany: owner?.company ?? "",
-      ownerAddress: owner?.billingAddress ?? "", ownerVat: owner?.vatNumber ?? "",
-      period, issueDate: issue, dueDate: due, vatRate,
-      lines, totalHT, totalVAT, totalTTC: totalHT + totalVAT, status: "DRAFT", missionIds: list.map((m) => m.id),
-    };
-    batch.set(ref, invoice);
-    list.forEach((m) => batch.update(doc(db(), "missions", m.id), { invoiceId: ref.id }));
-  }
-  await batch.commit();
-  await log(by, `${groups.size} facture(s) générée(s) pour ${periodLabel(period)}`);
-  return groups.size;
-}
-
-/**
- * Envoie un brouillon : attribue le numéro suivant de l'année (transaction : jamais de doublon
- * ni de trou), date la facture du jour et la met en file pour l'e-mail au client.
- */
-export async function sendInvoice(inv: Invoice) {
-  const today = todayISO();
-  const year = today.slice(0, 4);
-  const settingsRef = doc(db(), "settings", "main");
-  const invRef = doc(db(), "invoices", inv.id);
-  return runTransaction(db(), async (tx) => {
-    const [sSnap, iSnap] = await Promise.all([tx.get(settingsRef), tx.get(invRef)]);
-    const current = iSnap.data() as Invoice | undefined;
-    if (!current) throw new Error("Facture introuvable");
-    if (current.number) return current.number; // déjà numérotée
-    const st = { ...DEFAULT_SETTINGS, ...(sSnap.data() ?? {}) } as Settings;
-    const seq = (st.invoiceSeq?.[year] ?? 0) + 1;
-    const number = `${st.invoicePrefix}${year}-${String(seq).padStart(4, "0")}`;
-    tx.set(settingsRef, { invoiceSeq: { ...(st.invoiceSeq ?? {}), [year]: seq } }, { merge: true });
-    tx.update(invRef, {
-      number, status: "SENT", sentAt: new Date().toISOString(), notifyOwner: true,
-      issueDate: `${today}T12:00:00`, dueDate: `${addDays(today, st.paymentDays)}T12:00:00`,
-    });
-    return number;
-  });
-}
-
-export async function updateInvoice(id: string, patch: Partial<Invoice>) {
-  await updateDoc(doc(db(), "invoices", id), patch);
-}
-
-export async function deleteInvoice(inv: Invoice, by: string) {
-  const batch = writeBatch(db());
-  inv.missionIds.forEach((mid) => batch.update(doc(db(), "missions", mid), { invoiceId: null }));
-  batch.delete(doc(db(), "invoices", inv.id));
-  await batch.commit();
-  await log(by, `Brouillon de facture de ${inv.ownerName} supprimé (passages libérés)`);
 }
 
 /* ------------------------------ Divers ------------------------------ */

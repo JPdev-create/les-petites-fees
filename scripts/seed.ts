@@ -21,9 +21,9 @@ async function wipe(name: string) {
 }
 
 async function main() {
-  for (const c of ["profiles", "gites", "missions", "submissions", "invoices", "stock", "mail", "activity", "settings"]) await wipe(c);
+  for (const c of ["profiles", "gites", "missions", "submissions", "stock", "mail", "activity", "settings"]) await wipe(c);
 
-  await db.doc("settings/main").set({ ...DEFAULT_SETTINGS, iban: "BE68 5390 0754 7034", bic: "GKCCBEBB", vatNumber: "BE0000.000.000" });
+  await db.doc("settings/main").set({ ...DEFAULT_SETTINGS, vatNumber: "BE0000.000.000" });
 
   const people = [
     { email: "gestion@lespetitesfees.be", name: "Sophie Gestion", role: "ADMIN" },
@@ -59,11 +59,11 @@ async function main() {
     return db.collection("missions").add({
       giteId: gid, giteName: g.name, giteColor: g.color, ownerEmail: o.email, ownerName: o.name,
       date: addDays(today, offset), time: g.defaultTime ?? "11:00", status, source: "OWNER", urgent: false, extraLinen: false,
-      ownerNote: null, adminNote: null, price: g.price, invoiceId: null, notifyAdmin: false, notifyOwner: null,
+      ownerNote: null, adminNote: null, price: g.price, notifyAdmin: false, notifyOwner: null,
       createdAt: now, updatedAt: now, doneAt: status === "DONE" ? now : null, ...extra,
     });
   };
-  // Passé : effectués (à facturer) + un confirmé non clôturé
+  // Passé : effectués + un confirmé non clôturé
   for (const [gid, off] of [["moulin", -20], ["moulin", -13], ["verger", -9], ["ourthe", -16], ["ourthe", -6], ["chalet", -11], ["cabinet", -14], ["cabinet", -7]] as const) await mk(gid, off, "DONE");
   await mk("chalet", -2, "CONFIRMED");
   // À venir

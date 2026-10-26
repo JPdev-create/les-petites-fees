@@ -42,9 +42,9 @@ export function Onboarding({ user, onDone }: { user: User; onDone?: () => void }
       </div>
       <Field label="Nom et prénom"><input className="input h-12" required autoFocus autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
       <Field label="Téléphone" hint="Pour vous joindre le jour du passage si besoin."><input className="input h-12" type="tel" autoComplete="tel" inputMode="tel" placeholder="0470 00 00 00" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></Field>
-      <Field label="Adresse de facturation"><textarea className="input min-h-[72px]" autoComplete="street-address" placeholder="Rue, numéro, code postal, localité" value={f.billingAddress} onChange={(e) => setF({ ...f, billingAddress: e.target.value })} /></Field>
+      <Field label="Adresse postale"><textarea className="input min-h-[72px]" autoComplete="street-address" placeholder="Rue, numéro, code postal, localité" value={f.billingAddress} onChange={(e) => setF({ ...f, billingAddress: e.target.value })} /></Field>
       <details className="group rounded-xl border border-[var(--border)] px-4 py-3">
-        <summary className="cursor-pointer list-none text-sm font-medium text-brand-700 dark:text-brand-300">+ Je facture au nom d&apos;une société</summary>
+        <summary className="cursor-pointer list-none text-sm font-medium text-brand-700 dark:text-brand-300">+ Au nom d&apos;une société</summary>
         <div className="mt-3 space-y-3">
           <Field label="Société"><input className="input" autoComplete="organization" value={f.company} onChange={(e) => setF({ ...f, company: e.target.value })} /></Field>
           <Field label="N° de TVA"><input className="input" placeholder="BE0123.456.789" value={f.vatNumber} onChange={(e) => setF({ ...f, vatNumber: e.target.value })} /></Field>

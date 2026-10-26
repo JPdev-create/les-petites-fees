@@ -173,7 +173,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <Link href="/"><Logo className="!h-28" /></Link>
         <div className="relative mt-auto max-w-md">
           <p className="font-display text-3xl font-semibold leading-tight">Vos nettoyages planifiés en 30 secondes.</p>
-          <p className="mt-4 text-white/75">Touchez vos dates, nous nous occupons du reste. Confirmation par e-mail, historique et factures au même endroit.</p>
+          <p className="mt-4 text-white/75">Touchez vos dates, nous nous occupons du reste. Confirmation par e-mail et historique de vos passages au même endroit.</p>
           <div className="mt-10 grid grid-cols-3 gap-4 text-sm">
             {[["1", "Connexion en 1 clic"], ["2", "Touchez vos dates"], ["3", "C'est confirmé ✨"]].map(([n, t]) => (
               <div key={n} className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/10 backdrop-blur">

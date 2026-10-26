@@ -28,7 +28,7 @@ export default function Landing() {
           <div>
           <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium ring-1 ring-white/15">✨ Gîtes · Appartements · Bureaux</p>
           <h1 className="mt-5 max-w-2xl font-display text-4xl font-semibold leading-[1.1] tracking-tight sm:text-6xl">Vos nettoyages planifiés en 30 secondes.</h1>
-          <p className="mt-5 max-w-xl text-lg text-white/80">Fini les e-mails et les messages WhatsApp. Touchez vos dates sur le calendrier : nous confirmons, nous nettoyons, vous recevez une facture claire chaque mois.</p>
+          <p className="mt-5 max-w-xl text-lg text-white/80">Fini les e-mails et les messages WhatsApp. Touchez vos dates sur le calendrier : nous confirmons, nous nettoyons, et vous suivez tout depuis votre espace.</p>
           <div className="mt-9 flex flex-wrap gap-3">
             <Link href="/connexion/" className="btn h-14 rounded-2xl bg-white px-7 text-base text-brand-800 shadow-xl hover:bg-brand-50">
               Encoder mes dates <ArrowRight className="size-5" />
@@ -67,7 +67,7 @@ export default function Landing() {
               { icon: RefreshCw, t: "Airbnb & Booking synchronisés", d: "Collez le lien de votre calendrier : chaque départ crée automatiquement un nettoyage." },
               { icon: Smartphone, t: "S'installe comme une appli", d: "Ajoutez-la à l'écran d'accueil de votre téléphone." },
               { icon: MailCheck, t: "Rappel en fin de mois", d: "Un petit e-mail si vous avez oublié d'encoder le mois suivant." },
-              { icon: ShieldCheck, t: "Données protégées", d: "Hébergées en Europe. Vous seul voyez vos lieux et vos factures." },
+              { icon: ShieldCheck, t: "Données protégées", d: "Hébergées en Europe. Vous seul voyez vos lieux et vos passages." },
             ].map((x) => (
               <li key={x.t} className="flex gap-3">
                 <x.icon className="mt-0.5 size-5 shrink-0 text-brand-600" />

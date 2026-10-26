@@ -131,10 +131,10 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
                 </button>
               </>
             )}
-            {m.status === "DONE" && hourly && !m.invoiceId && (
+            {m.status === "DONE" && hourly && (
               <button className="btn-secondary" onClick={() => setMode("done")}><Clock className="size-4" /> Modifier la durée</button>
             )}
-            {(m.status === "DONE" || m.status === "REFUSED" || m.status === "CANCELLED") && !m.invoiceId && (
+            {(m.status === "DONE" || m.status === "REFUSED" || m.status === "CANCELLED") && (
               <button className="btn-secondary" disabled={busy} onClick={() => run(() => setMissionsStatus([m.id], m.status === "DONE" ? "CONFIRMED" : "REQUESTED", me.name), "Passage rouvert")}>
                 <RotateCcw className="size-4" /> Rouvrir
               </button>
@@ -145,7 +145,7 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
     >
       {mode === "done" ? (
         <div className="space-y-4">
-          <p className="muted text-sm">Ce lieu est facturé à l&apos;heure ({euros(gite?.hourlyRate ?? 0)}/h HTVA). Combien de temps a duré le nettoyage ?</p>
+          <p className="muted text-sm">Ce lieu est au tarif horaire ({euros(gite?.hourlyRate ?? 0)}/h HTVA). Combien de temps a duré le nettoyage ?</p>
           <div className="grid grid-cols-4 gap-2">
             {[60, 90, 120, 150, 180, 210, 240, 300].map((v) => (
               <button key={v} type="button" onClick={() => setWorked(v)} className={`rounded-xl border py-2.5 text-sm font-semibold transition ${worked === v ? "border-transparent bg-brand-600 text-white" : "border-[var(--border)] hover:bg-zinc-50 dark:hover:bg-white/5"}`}>{durationLabel(v)}</button>
@@ -182,7 +182,6 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={m.status} />
             {m.urgent && <span className="badge bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300"><Zap className="size-3" /> Urgent</span>}
-            {m.invoiceId && <span className="badge bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-300">Facturé</span>}
           </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             <div><dt className="muted text-xs">Date</dt><dd className="font-semibold">{formatDate(m.date)}</dd></div>
@@ -221,14 +220,12 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
               )}
             </div>
           </Field>
-          {!m.invoiceId && (
-            <button
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600 hover:underline"
-              onClick={async () => (await askConfirm({ title: "Supprimer ce passage ?", message: `${m.giteName} — ${formatDate(m.date)}. Cette action est définitive.`, confirmLabel: "Supprimer", danger: true })) && run(() => deleteMission(m.id), "Passage supprimé")}
-            >
-              <Trash2 className="size-3.5" /> Supprimer ce passage
-            </button>
-          )}
+          <button
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600 hover:underline"
+            onClick={async () => (await askConfirm({ title: "Supprimer ce passage ?", message: `${m.giteName} — ${formatDate(m.date)}. Cette action est définitive.`, confirmLabel: "Supprimer", danger: true })) && run(() => deleteMission(m.id), "Passage supprimé")}
+          >
+            <Trash2 className="size-3.5" /> Supprimer ce passage
+          </button>
         </div>
       )}
     </Modal>

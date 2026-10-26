@@ -1,6 +1,6 @@
 // Contenu des e-mails automatiques : chaque message donne toutes les infos utiles
 // (quoi, où, quand, combien) et un bouton qui mène directement à la bonne page.
-import type { Gite, Invoice, Mission, Profile, Settings } from "../../src/lib/types";
+import type { Gite, Mission, Profile, Settings } from "../../src/lib/types";
 import { capitalize, euros, formatDate, periodLabel } from "../../src/lib/format";
 import { APP_URL, type Email, type EmailItem } from "./mailer";
 
@@ -20,13 +20,6 @@ export function visitItem(m: Mission, g?: Gite, extra?: string | null): EmailIte
   };
 }
 
-/** Communication structurée belge (+++xxx/xxxx/xxxxx+++) dérivée du numéro de facture */
-export function ogm(number: string) {
-  const digits = (number.replace(/\D/g, "") + "0000000000").slice(0, 10);
-  const mod = Number(BigInt(digits) % 97n) || 97;
-  return `+++${digits.slice(0, 3)}/${digits.slice(3, 7)}/${digits.slice(7)}${String(mod).padStart(2, "0")}+++`;
-}
-
 /* ============================ Clients ============================ */
 
 export function inviteEmail(p: Profile, s: Settings): [string, Email] {
@@ -36,7 +29,7 @@ export function inviteEmail(p: Profile, s: Settings): [string, Email] {
       preheader: "Planifiez vos nettoyages en 30 secondes, depuis votre téléphone ou votre ordinateur.",
       title: "Bienvenue dans votre espace ✨",
       intro: `Bonjour ${first(p.name)},`,
-      lines: ["Votre espace client est prêt. Vous y planifiez vos nettoyages en quelques secondes, suivez chaque passage et retrouvez toutes vos factures."],
+      lines: ["Votre espace client est prêt. Vous y planifiez vos nettoyages en quelques secondes et suivez chaque passage."],
       sections: [{
         heading: "Comment ça marche",
         tone: "neutral",
@@ -86,34 +79,6 @@ export function ownerUpdateEmail(p: Profile, list: Mission[], gites: Map<string,
       ],
     },
     onlyKo ? "REFUSAL" : "CONFIRMATION",
-  ];
-}
-
-export function invoiceEmail(p: Profile, inv: Invoice, s: Settings): [string, Email] {
-  return [
-    `Facture ${inv.number} — ${periodLabel(inv.period)}`,
-    {
-      preheader: `${euros(inv.totalTTC)} à régler avant le ${formatDate(inv.dueDate.slice(0, 10), "medium")}`,
-      title: `Votre facture ${dePeriod(inv.period)}`,
-      intro: `Bonjour ${first(p.name)},`,
-      lines: [`Voici votre facture pour les nettoyages ${dePeriod(inv.period)}. Merci pour votre confiance !`],
-      summary: [
-        ["Facture", inv.number],
-        ["Prestations", `${inv.lines.length} passage${inv.lines.length > 1 ? "s" : ""}`],
-        [inv.vatRate > 0 ? "Montant TVAC" : "Montant", `<span style="font-size:18px;color:#2f6873">${euros(inv.totalTTC)}</span>`],
-        ["À payer avant le", capitalize(formatDate(inv.dueDate.slice(0, 10)))],
-        ...(s.iban ? ([["IBAN", s.iban]] as [string, string][]) : []),
-        ...(s.bic ? ([["BIC", s.bic]] as [string, string][]) : []),
-        ["Communication", `<span style="font-family:Consolas,Menlo,monospace">${ogm(inv.number)}</span>`],
-      ],
-      sections: [{
-        heading: "Détail",
-        tone: "neutral",
-        items: inv.lines.map((l) => ({ title: l.label.replace(/^Nettoyage « (.+?) » — /, "$1 — "), meta: euros(l.total) + (inv.vatRate > 0 ? " HTVA" : "") })),
-      }],
-      cta: { label: "Voir et télécharger la facture (PDF)", url: `${APP_URL}/espace/facture/?id=${inv.id}` },
-      after: ["Merci d'utiliser la communication structurée ci-dessus : votre paiement sera ainsi reconnu automatiquement."],
-    },
   ];
 }
 

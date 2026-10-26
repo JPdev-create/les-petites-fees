@@ -88,7 +88,7 @@ export function render(e: Email, s: Settings = DEFAULT_SETTINGS) {
       <p style="margin:0 0 6px;font-family:${FONT};font-size:12px;line-height:18px;color:#a1a1aa">Le bouton ne fonctionne pas ? Copiez ce lien dans votre navigateur :<br><a href="${e.cta.url}" style="color:#2f6873;word-break:break-all">${esc(e.cta.url)}</a></p>`
     : "";
 
-  const legal = [s.legalForm, s.bceNumber ? `BCE ${s.bceNumber}` : "", !s.vatFranchise && s.vatNumber ? `TVA ${s.vatNumber}` : ""].filter(Boolean).join(" · ");
+  const legal = [s.legalForm, s.bceNumber ? `BCE ${s.bceNumber}` : "", s.vatNumber ? `TVA ${s.vatNumber}` : ""].filter(Boolean).join(" · ");
   const links =
     e.audience === "admin"
       ? `<a href="${APP_URL}/admin/" style="color:#4a9aa8;text-decoration:underline">Tableau de bord</a> &nbsp;·&nbsp; <a href="${APP_URL}/admin/parametres/" style="color:#4a9aa8;text-decoration:underline">Paramètres</a>`

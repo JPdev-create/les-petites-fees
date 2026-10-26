@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, Building2, BellRing, Receipt, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Save, Building2, BellRing, Tag, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAdmin } from "@/components/admin-data";
 import { Field, PageHeader, Spinner, Toggle } from "@/components/ui";
 import { toast } from "@/components/toaster";
@@ -19,8 +19,8 @@ export default function SettingsPage() {
   const save = async () => {
     setBusy(true);
     try {
-      const { invoiceSeq, lastReminderRun, lastAutomationRun, syncRequestedAt, ...rest } = s;
-      void invoiceSeq; void lastReminderRun; void lastAutomationRun; void syncRequestedAt;
+      const { lastReminderRun, lastAutomationRun, syncRequestedAt, ...rest } = s;
+      void lastReminderRun; void lastAutomationRun; void syncRequestedAt;
       await saveSettings(rest);
       toast("Paramètres enregistrés");
     } catch {
@@ -50,21 +50,11 @@ export default function SettingsPage() {
             <Field label="N° d'entreprise (BCE)"><input className="input" value={s.bceNumber} onChange={(e) => set("bceNumber", e.target.value)} placeholder="0123.456.789" /></Field>
           </div>
           <Field label="N° de TVA"><input className="input" value={s.vatNumber} onChange={(e) => set("vatNumber", e.target.value)} placeholder="BE0123.456.789" /></Field>
-          <p className="hint !mt-0">Ces informations apparaissent sur les factures et dans les mentions légales du site (obligatoires en Belgique).</p>
+          <p className="hint !mt-0">Ces informations apparaissent dans les mentions légales du site (obligatoires en Belgique).</p>
         </section>
 
         <section className="card space-y-4 p-5">
-          <h2 className="flex items-center gap-2 font-display font-semibold"><Receipt className="size-4 text-brand-600" /> Facturation</h2>
-          <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
-            <Field label="IBAN"><input className="input font-mono" value={s.iban} onChange={(e) => set("iban", e.target.value)} placeholder="BE00 0000 0000 0000" /></Field>
-            <Field label="BIC"><input className="input font-mono" value={s.bic} onChange={(e) => set("bic", e.target.value)} /></Field>
-          </div>
-          <Toggle checked={s.vatFranchise} onChange={(v) => set("vatFranchise", v)} label="Régime de franchise de TVA" hint="Petite entreprise exemptée (art. 56bis) : factures sans TVA, avec la mention légale." />
-          <div className="grid grid-cols-3 gap-4">
-            <Field label="TVA (%)"><input type="number" step="0.5" className="input" disabled={s.vatFranchise} value={s.vatFranchise ? 0 : s.vatRate} onChange={(e) => set("vatRate", +e.target.value)} /></Field>
-            <Field label="Préfixe"><input className="input" value={s.invoicePrefix} onChange={(e) => set("invoicePrefix", e.target.value)} /></Field>
-            <Field label="Délai (jours)"><input type="number" className="input" value={s.paymentDays} onChange={(e) => set("paymentDays", +e.target.value)} /></Field>
-          </div>
+          <h2 className="flex items-center gap-2 font-display font-semibold"><Tag className="size-4 text-brand-600" /> Tarifs par défaut</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Forfait par défaut (HTVA €)" hint="Prix d'un passage pour un nouveau lieu.">
               <input type="number" step="0.01" className="input" value={s.defaultPrice / 100} onChange={(e) => set("defaultPrice", Math.round(+e.target.value * 100))} />

@@ -90,7 +90,7 @@ export default function RequestsPage() {
       </div>
 
       {tab === "past" && list.length > 0 && (
-        <p className="muted mb-3 text-sm">Ces passages confirmés sont passés : marquez-les comme effectués pour pouvoir les facturer.</p>
+        <p className="muted mb-3 text-sm">Ces passages confirmés sont passés : marquez-les comme effectués pour garder un historique à jour.</p>
       )}
 
       <div className="card overflow-hidden">

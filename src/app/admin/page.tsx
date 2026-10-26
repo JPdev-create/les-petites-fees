@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { collection, limit, orderBy, query } from "firebase/firestore";
-import { Inbox, CalendarCheck, AlertTriangle, Receipt, Check, Plus, Send, Shirt, ArrowRight, Sparkles, Activity as ActivityIcon, CalendarDays, Home } from "lucide-react";
+import { Inbox, CalendarCheck, AlertTriangle, CheckCheck, Check, Plus, Send, Shirt, ArrowRight, Sparkles, Activity as ActivityIcon, CalendarDays, Home } from "lucide-react";
 import { useAdmin, missingPlanning } from "@/components/admin-data";
 import { MissionDialog, MissionLine, NewMissionDialog } from "@/components/mission-admin";
 import { Empty, PageHeader, Stat, Spinner } from "@/components/ui";
@@ -30,7 +30,7 @@ export default function Dashboard() {
     const weekEnd = addDays(weekStart, 6);
     const upcoming = active.filter((m) => m.date >= today && m.date <= addDays(today, 1)).sort((a, b) => (a.date + (a.time ?? "")).localeCompare(b.date + (b.time ?? "")));
     const week = active.filter((m) => m.date >= weekStart && m.date <= weekEnd);
-    const toInvoice = missions.filter((m) => m.status === "DONE" && !m.invoiceId);
+    const doneMonth = missions.filter((m) => m.status === "DONE" && m.date.startsWith(today.slice(0, 7)));
     const overdue = missions.filter((m) => m.status === "CONFIRMED" && m.date < today);
     const missing = missingPlanning(nextPeriod, gites, missions, submissions);
     const activeGites = gites.filter((g) => g.active).length;
@@ -45,7 +45,7 @@ export default function Dashboard() {
       },
       { beds: 0, towels: 0 },
     );
-    return { upcoming, week, toInvoice, overdue, missing, activeGites, linen, next7 };
+    return { upcoming, week, doneMonth, overdue, missing, activeGites, linen, next7 };
   }, [missions, gites, submissions, today, nextPeriod]);
 
   const confirmAll = async () => {
@@ -114,7 +114,7 @@ export default function Dashboard() {
         <Stat label="Demandes à traiter" value={pending.length} icon={Inbox} tone="amber" href="/admin/demandes/" hint={pending.length ? "Touchez pour valider" : "Tout est à jour 👌"} />
         <Stat label="Passages cette semaine" value={d.week.length} icon={CalendarCheck} hint={`${d.upcoming.length} aujourd'hui et demain`} href="/admin/calendrier/" />
         <Stat label={`Plannings ${periodLabel(nextPeriod).split(" ")[0]}`} value={`${d.activeGites - d.missing.length}/${d.activeGites}`} icon={AlertTriangle} tone={d.missing.length ? "rose" : "emerald"} hint={d.missing.length ? `${d.missing.length} manquant(s)` : "Complet"} />
-        <Stat label="À facturer" value={euros(d.toInvoice.reduce((a, m) => a + m.price, 0))} icon={Receipt} tone="violet" hint={`${d.toInvoice.length} passage(s) effectué(s)`} href="/admin/factures/" />
+        <Stat label="Effectués ce mois" value={d.doneMonth.length} icon={CheckCheck} tone="violet" hint={`${euros(d.doneMonth.reduce((a, m) => a + m.price, 0))} HTVA`} href="/admin/calendrier/" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">

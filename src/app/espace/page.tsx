@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarPlus, CheckCircle2, Clock, Phone, Mail, ArrowRight, Sparkles, CircleDashed, Receipt, Home } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Clock, Phone, Mail, ArrowRight, Sparkles, CircleDashed, Home } from "lucide-react";
 import { useOwner } from "@/components/owner-data";
 import { OwnerMissionSheet } from "@/components/owner-mission";
 import { InstallPrompt } from "@/components/pwa";
@@ -11,7 +11,7 @@ import { currentPeriod, euros, formatDate, periodLabel, relativeDay, shiftPeriod
 import type { Mission } from "@/lib/types";
 
 export default function OwnerHome() {
-  const { me, gites, missions, submissions, invoices, settings, loading } = useOwner();
+  const { me, gites, missions, submissions, settings, loading } = useOwner();
   const [open, setOpen] = useState<Mission | null>(null);
   const today = todayISO();
   const day = Number(today.slice(8));
@@ -29,7 +29,6 @@ export default function OwnerHome() {
   );
   const todo = status.filter((s) => !s.done);
   const upcoming = missions.filter((m) => m.date >= today && (m.status === "REQUESTED" || m.status === "CONFIRMED")).slice(0, 5);
-  const unpaid = invoices.filter((i) => i.status === "SENT");
 
   if (loading) return <div className="grid h-64 place-items-center"><Spinner className="size-6 text-brand-500" /></div>;
 
@@ -113,17 +112,6 @@ export default function OwnerHome() {
           })}
         </div>
       </section>
-
-      {unpaid.length > 0 && (
-        <Link href="/espace/compte/#factures" className="card flex items-center gap-3 p-4">
-          <span className="grid size-10 place-items-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300"><Receipt className="size-5" /></span>
-          <div className="flex-1">
-            <p className="font-semibold">{unpaid.length} facture{unpaid.length > 1 ? "s" : ""} à régler</p>
-            <p className="muted text-sm">{euros(unpaid.reduce((a, i) => a + i.totalTTC, 0))} TVAC</p>
-          </div>
-          <ArrowRight className="size-4 text-zinc-400" />
-        </Link>
-      )}
 
       {/* Contact */}
       <section className="card p-4">

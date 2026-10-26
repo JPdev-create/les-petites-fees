@@ -127,7 +127,7 @@ export default function ClientsPage() {
                   const p = profiles.find((x) => x.id === edit.form.email);
                   if (!p) return;
                   if (gites.some((g) => g.ownerEmail === p.id)) return toast("Ce client a encore des lieux : désactivez-le plutôt.", "error");
-                  if (!(await askConfirm({ title: `Supprimer le compte de ${p.name} ?`, message: "La personne ne pourra plus se connecter. Ses factures déjà émises sont conservées.", confirmLabel: "Supprimer le compte", danger: true }))) return;
+                  if (!(await askConfirm({ title: `Supprimer le compte de ${p.name} ?`, message: "La personne ne pourra plus se connecter. L'historique de ses passages est conservé.", confirmLabel: "Supprimer le compte", danger: true }))) return;
                   await deleteProfile(p, me.name);
                   toast("Compte supprimé");
                   setEdit(null);
@@ -153,7 +153,7 @@ export default function ClientsPage() {
             <Field label="Téléphone"><input className="input" type="tel" value={edit.form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+32 470 00 00 00" /></Field>
             {edit.form.role === "OWNER" && (
               <>
-                <Field label="Adresse de facturation"><textarea className="input min-h-[70px]" value={edit.form.billingAddress} onChange={(e) => set("billingAddress", e.target.value)} /></Field>
+                <Field label="Adresse postale"><textarea className="input min-h-[70px]" value={edit.form.billingAddress} onChange={(e) => set("billingAddress", e.target.value)} /></Field>
                 <Field label="N° de TVA (facultatif)"><input className="input" value={edit.form.vatNumber} onChange={(e) => set("vatNumber", e.target.value)} placeholder="BE0123.456.789" /></Field>
               </>
             )}

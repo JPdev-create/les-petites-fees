@@ -141,10 +141,4 @@ export const KIND: Record<string, string> = {
   AUTRE: "Autre",
 };
 
-export const INVOICE_STATUS: Record<string, { label: string; tone: string }> = {
-  DRAFT: { label: "Brouillon", tone: "bg-zinc-100 text-zinc-700 dark:bg-zinc-400/15 dark:text-zinc-300" },
-  SENT: { label: "À payer", tone: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300" },
-  PAID: { label: "Payée", tone: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-300" },
-};
-
 export const COLORS = ["#0ea5e9", "#8b5cf6", "#f43f5e", "#10b981", "#f59e0b", "#6366f1", "#14b8a6", "#ec4899", "#84cc16", "#f97316"];

@@ -79,7 +79,7 @@ export default function PlaceForm() {
   };
 
   const remove = async () => {
-    if (!existing || !(await askConfirm({ title: `Supprimer « ${existing.name} » ?`, message: "Les passages à venir de ce lieu seront supprimés ; l'historique facturé est conservé. Astuce : vous pouvez plutôt le désactiver (interrupteur « Lieu actif »).", confirmLabel: "Supprimer le lieu", danger: true }))) return;
+    if (!existing || !(await askConfirm({ title: `Supprimer « ${existing.name} » ?`, message: "Les passages à venir de ce lieu seront supprimés ; les passages déjà effectués sont conservés. Astuce : vous pouvez plutôt le désactiver (interrupteur « Lieu actif »).", confirmLabel: "Supprimer le lieu", danger: true }))) return;
     await deleteGite(existing, me.name);
     toast("Lieu supprimé");
     router.replace("/admin/lieux/");
@@ -197,7 +197,7 @@ export default function PlaceForm() {
                   <p className="font-semibold">{o.name}{o.company ? <span className="muted font-normal"> · {o.company}</span> : null}</p>
                   {o.phone && <p className="muted">{o.phone}</p>}
                   <p className="muted break-all">{o.email}</p>
-                  {o.billingAddress && <p className="muted mt-1 whitespace-pre-line text-xs">Facturation : {o.billingAddress}</p>}
+                  {o.billingAddress && <p className="muted mt-1 whitespace-pre-line text-xs">Adresse : {o.billingAddress}</p>}
                   {o.vatNumber && <p className="muted text-xs">TVA {o.vatNumber}</p>}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -245,7 +245,7 @@ export default function PlaceForm() {
             <p className="muted -mt-1 rounded-xl bg-zinc-50 px-3 py-2 text-xs dark:bg-white/5">
               {isHourly(f)
                 ? <>Passage estimé à <strong className="text-zinc-800 dark:text-zinc-200">{euros(giteUnitPrice(f))} HTVA</strong> ({durationLabel(f.durationMin)} × {euros(f.hourlyRate ?? 0)}). La durée réelle est demandée quand vous marquez le passage comme effectué.</>
-                : settings.vatFranchise ? "Franchise de TVA : prix final." : <>{euros(Math.round(f.price * (1 + settings.vatRate / 100)))} TVAC ({settings.vatRate} %)</>}
+                : <>Prix d&apos;un passage : <strong className="text-zinc-800 dark:text-zinc-200">{euros(f.price)} HTVA</strong>.</>}
             </p>
             <div>
               <span className="label">Couleur dans le calendrier</span>

@@ -1,7 +1,6 @@
 export type Role = "ADMIN" | "OWNER";
 export type MissionStatus = "REQUESTED" | "CONFIRMED" | "DONE" | "REFUSED" | "CANCELLED";
 export type MissionSource = "OWNER" | "ADMIN" | "ICAL";
-export type InvoiceStatus = "DRAFT" | "SENT" | "PAID";
 
 /** profiles/{email} */
 export type Profile = {
@@ -78,7 +77,6 @@ export type Mission = {
   price: number; // centimes HTVA (à l'heure : estimation, puis durée réelle × tarif)
   workedMin?: number | null; // durée réelle (tarif horaire)
   hourlyRate?: number | null; // tarif horaire appliqué
-  invoiceId: string | null;
   notifyAdmin?: boolean;
   notifyOwner?: string | null; // CONFIRMED | REFUSED | MOVED | CANCELLED → e-mail à envoyer au client
   cancelledBy?: string;
@@ -95,33 +93,6 @@ export type Submission = {
   period: string;
   empty: boolean;
   submittedAt: string;
-};
-
-export type InvoiceLine = { label: string; quantity: number; unitPrice: number; total: number };
-
-/** invoices/{id} */
-export type Invoice = {
-  id: string;
-  number: string;
-  ownerEmail: string;
-  ownerName: string;
-  ownerCompany?: string;
-  ownerAddress?: string;
-  ownerVat?: string;
-  period: string;
-  issueDate: string;
-  dueDate: string;
-  vatRate: number;
-  lines: InvoiceLine[];
-  totalHT: number;
-  totalVAT: number;
-  totalTTC: number;
-  status: InvoiceStatus;
-  sentAt?: string | null;
-  paidAt?: string | null;
-  missionIds: string[];
-  notes?: string;
-  notifyOwner?: boolean;
 };
 
 export type StockItem = {
@@ -143,13 +114,6 @@ export type Settings = {
   vatNumber: string;
   legalForm: string; // ex. « SRL », « Personne physique »
   bceNumber: string; // n° d'entreprise (BCE)
-  vatFranchise: boolean; // régime de franchise des petites entreprises (art. 56bis CTVA)
-  iban: string;
-  bic: string;
-  vatRate: number;
-  invoicePrefix: string;
-  invoiceSeq: Record<string, number>; // par année
-  paymentDays: number;
   reminderDay1: number;
   reminderDay2: number;
   reminderEnabled: boolean;
@@ -185,13 +149,6 @@ export const DEFAULT_SETTINGS: Settings = {
   vatNumber: "",
   legalForm: "",
   bceNumber: "",
-  vatFranchise: false,
-  iban: "",
-  bic: "",
-  vatRate: 21,
-  invoicePrefix: "F",
-  invoiceSeq: {},
-  paymentDays: 15,
   reminderDay1: 20,
   reminderDay2: 25,
   reminderEnabled: true,

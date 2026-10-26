@@ -43,7 +43,7 @@ export default function LegalPage() {
               <dt>Dénomination</dt><dd>{s.companyName}{s.legalForm ? ` (${s.legalForm})` : ""}</dd>
               <dt>Siège / adresse</dt><dd>{s.companyAddress}</dd>
               <dt>N° d&apos;entreprise (BCE)</dt><dd>{s.bceNumber || missing}</dd>
-              <dt>N° de TVA</dt><dd>{s.vatFranchise ? "Franchise de TVA (art. 56bis CTVA)" : s.vatNumber || missing}</dd>
+              <dt>N° de TVA</dt><dd>{s.vatNumber || missing}</dd>
               <dt>E-mail</dt><dd><a href={`mailto:${s.companyEmail}`}>{s.companyEmail}</a></dd>
               <dt>Téléphone</dt><dd><a href={`tel:${s.companyPhone.replace(/\s/g, "")}`}>{s.companyPhone}</a></dd>
               <dt>Activité</dt><dd>Services de nettoyage de gîtes, logements de vacances et bureaux</dd>
@@ -66,18 +66,16 @@ export default function LegalPage() {
 
             <h3>Données traitées</h3>
             <ul>
-              <li><strong>Identité et contact</strong> : nom, adresse e-mail, téléphone, société, adresse de facturation, n° de TVA.</li>
+              <li><strong>Identité et contact</strong> : nom, adresse e-mail, téléphone, société, adresse postale, n° de TVA.</li>
               <li><strong>Lieux à entretenir</strong> : nom et adresse du gîte ou du bureau, informations d&apos;accès (code de boîte à clés, alarme…), consignes particulières.</li>
               <li><strong>Planning</strong> : dates et heures de passage, messages laissés à l&apos;équipe, historique des passages.</li>
               <li><strong>Calendriers de réservation</strong> (si vous nous transmettez un lien iCal Airbnb, Booking…) : uniquement les dates d&apos;arrivée et de départ, sans l&apos;identité des voyageurs.</li>
-              <li><strong>Facturation</strong> : factures, montants, statut de paiement.</li>
               <li><strong>Connexion</strong> : adresse e-mail du compte Google ou du lien de connexion, date de dernière connexion.</li>
             </ul>
 
             <h3>Finalités et bases légales</h3>
             <ul>
               <li>Organiser et réaliser les nettoyages demandés, vous confirmer les dates et vous rappeler d&apos;encoder votre planning — <em>exécution du contrat</em> (art. 6.1.b RGPD).</li>
-              <li>Établir et conserver les factures — <em>obligation légale</em> comptable et fiscale (art. 6.1.c RGPD).</li>
               <li>Sécuriser l&apos;accès à votre espace — <em>intérêt légitime</em> (art. 6.1.f RGPD).</li>
             </ul>
             <p>Vos données ne sont jamais vendues, ni utilisées à des fins publicitaires.</p>
@@ -85,7 +83,6 @@ export default function LegalPage() {
             <h3>Durées de conservation</h3>
             <ul>
               <li>Données de compte, lieux et planning : pendant la relation commerciale, puis 3 ans maximum après le dernier passage.</li>
-              <li>Factures et pièces comptables : 10 ans (obligation légale belge).</li>
               <li>Journal des e-mails envoyés : 12 mois.</li>
             </ul>
 
@@ -126,7 +123,7 @@ export default function LegalPage() {
               <li>L&apos;espace client est réservé aux clients de {s.companyName}. Votre accès est personnel : ne partagez pas votre compte.</li>
               <li>Une demande de passage n&apos;est définitive qu&apos;après confirmation par {s.companyName}, notifiée par e-mail et visible dans votre espace.</li>
               <li>Les demandes et annulations doivent être faites au moins {s.minNoticeHours} heures à l&apos;avance ; en deçà, contactez-nous par téléphone.</li>
-              <li>Les prestations effectuées sont facturées mensuellement, au tarif convenu pour chaque lieu. Les factures sont payables par virement dans les {s.paymentDays} jours.</li>
+              <li>Les prestations sont réalisées au tarif convenu pour chaque lieu ; la facturation se fait en dehors de cet espace, selon les modalités habituelles de {s.companyName}.</li>
               <li>Vous êtes responsable de l&apos;exactitude des informations d&apos;accès communiquées (codes, consignes). Elles ne sont visibles que par vous et par {s.companyName}.</li>
               <li>Le service est fourni « en l&apos;état » ; nous mettons tout en œuvre pour qu&apos;il soit disponible, mais une interruption ponctuelle reste possible. En cas de doute sur un passage, appelez-nous.</li>
               <li>Ces conditions sont régies par le droit belge. Tout litige relève des tribunaux de l&apos;arrondissement judiciaire du Luxembourg (division Marche-en-Famenne), sans préjudice des règles protectrices du consommateur.</li>

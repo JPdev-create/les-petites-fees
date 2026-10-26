@@ -71,9 +71,9 @@ service cloud.firestore {
       let g = gite(d.giteId);
       return owns(d) && g.ownerEmail == email()
         && d.status == 'REQUESTED' && d.source == 'OWNER'
-        && d.price == g.price && d.invoiceId == null && isDate(d.date)
+        && d.price == g.price && isDate(d.date)
         && d.keys().hasOnly(['giteId', 'giteName', 'giteColor', 'ownerEmail', 'ownerName', 'date', 'time', 'status',
-                             'source', 'urgent', 'extraLinen', 'ownerNote', 'price', 'invoiceId', 'notifyAdmin',
+                             'source', 'urgent', 'extraLinen', 'ownerNote', 'price', 'notifyAdmin',
                              'createdAt', 'updatedAt']);
     }
 
@@ -103,11 +103,6 @@ service cloud.firestore {
             && gite(request.resource.data.giteId).ownerEmail == email()
             && id == request.resource.data.giteId + '_' + request.resource.data.period);
       allow delete: if isAdmin() || (isOwner() && owns(resource.data));
-    }
-
-    match /invoices/{id} {
-      allow read: if isAdmin() || (isOwner() && owns(resource.data));
-      allow write: if isAdmin();
     }
 
     // Lisible par tous : coordonnées légales de l'entreprise (page « Mentions légales »)
