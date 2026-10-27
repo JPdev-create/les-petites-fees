@@ -6,12 +6,33 @@ import { BASE_PATH } from "@/lib/firebase";
 
 type BIPEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
+/** Erreur de chargement d'un morceau du site : l'appli ouverte date d'avant une mise à jour. */
+export const isStaleBuildError = (msg: string) => /ChunkLoadError|Loading (CSS )?chunk|dynamically imported module|Importing a module script failed/i.test(msg);
+
+/** Recharge la page une seule fois par minute (évite une boucle si le réseau est coupé). */
+export function reloadForUpdate() {
+  try {
+    const last = Number(sessionStorage.getItem("update-reload") || 0);
+    if (Date.now() - last < 60_000) return false;
+    sessionStorage.setItem("update-reload", String(Date.now()));
+  } catch {}
+  window.location.reload();
+  return true;
+}
+
 export function PwaRegister() {
   const [offline, setOffline] = useState(false);
   useEffect(() => {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker.register(`${BASE_PATH}/sw.js`, { scope: `${BASE_PATH}/` }).catch(() => {});
     }
+    // Site mis à jour pendant que l'appli était ouverte : on recharge la nouvelle version
+    const onError = (e: ErrorEvent | PromiseRejectionEvent) => {
+      const err = "reason" in e ? e.reason : e.error ?? e.message;
+      if (isStaleBuildError(String(err?.name ?? "") + " " + String(err?.message ?? err))) reloadForUpdate();
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onError);
     const update = () => setOffline(!navigator.onLine);
     update();
     window.addEventListener("online", update);
@@ -19,6 +40,8 @@ export function PwaRegister() {
     return () => {
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onError);
     };
   }, []);
   if (!offline) return null;
