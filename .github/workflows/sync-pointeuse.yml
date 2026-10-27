@@ -1,0 +1,28 @@
+# Envoi immédiat du planning vers la Pointeuse LPF (l'automatisation le fait déjà toutes les heures).
+name: Envoyer le planning à la pointeuse
+
+on:
+  workflow_dispatch:
+    inputs:
+      simulation:
+        description: "Simulation (afficher sans rien écrire dans la pointeuse)"
+        type: boolean
+        default: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Envoyer
+        env:
+          TZ: Europe/Brussels
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          POINTEUSE_SERVICE_ACCOUNT: ${{ secrets.POINTEUSE_SERVICE_ACCOUNT }}
+        run: npx tsx scripts/sync-pointeuse.ts ${{ inputs.simulation && '--dry-run' || '' }}

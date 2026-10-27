@@ -6,6 +6,7 @@
  *  5. Synchronisation iCal Airbnb / Booking (toutes les heures, ou sur demande)
  *  6. Relances de fin de mois (jours configurés dans les paramètres)
  *  7. Passages réguliers : création des prochaines dates (toujours 4 mois à l'avance)
+ *  8. Envoi du planning vers la Pointeuse LPF (toutes les heures, si la clé est configurée)
  *
  * Usage local : FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run automation
  */
@@ -17,6 +18,7 @@ import { APP_URL, send, sendSms } from "./lib/mailer";
 import { adminRequestsEmail, adminSignupEmail, inviteEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
 import { MAX_ICS_BYTES, isReservation, parseIcs, safeFeedUrl } from "./lib/ical";
 import { extendAll } from "./lib/recurrences";
+import { initPointeuse, syncPointeuse } from "./lib/pointeuse";
 import { DEFAULT_SETTINGS, type Gite, type Mission, type Profile, type Settings } from "../src/lib/types";
 import { addDays, currentPeriod, formatDate, periodBounds, periodLabel, shiftPeriod, todayISO } from "../src/lib/format";
 
@@ -243,7 +245,27 @@ async function monthlyReminders(s: Settings, people: Map<string, Profile>) {
   return results;
 }
 
-/* ---------------- 8. Durées de conservation (RGPD) ---------------- */
+/* ---------------- 8. Pointeuse LPF ---------------- */
+async function pointeuse(force: boolean) {
+  const pt = initPointeuse();
+  if (!pt) return null;
+  const last = (await db.doc("settings/main").get()).data()?.lastPointeuseRun as string | undefined;
+  if (!force && last && Date.now() - new Date(last).getTime() < 55 * 60_000) return null;
+  try {
+    const r = await syncPointeuse(db, pt);
+    await db.doc("settings/main").set({ lastPointeuseRun: now(), pointeuseError: null }, { merge: true });
+    if (r.created || r.updated || r.deleted || r.newChantiers.length) {
+      await db.collection("activity").add({ at: now(), by: "Pointeuse", message: `Planning envoyé : ${r.created} ajouté(s), ${r.updated} modifié(s), ${r.deleted} retiré(s)${r.newChantiers.length ? ` · nouveaux chantiers : ${r.newChantiers.join(", ")}` : ""}` });
+    }
+    return { ajoutes: r.created, modifies: r.updated, retires: r.deleted, chantiers: r.newChantiers.length };
+  } catch (e) {
+    await db.doc("settings/main").set({ pointeuseError: (e instanceof Error ? e.message : String(e)).slice(0, 300) }, { merge: true });
+    console.error("Pointeuse :", e);
+    return { erreur: true };
+  }
+}
+
+/* ---------------- 9. Durées de conservation (RGPD) ---------------- */
 async function purge() {
   const limit = new Date(Date.now() - 365 * 86400000).toISOString();
   let n = 0;
@@ -268,6 +290,7 @@ async function main() {
     file: await mailQueue(s, people),
     ical: await icalSync(s, force),
     reguliers: await extendAll(db),
+    pointeuse: await pointeuse(force),
     admins: await notifyAdmins(s, people),
     inscriptions: await newSignups(s, people),
     clients: await notifyOwners(s, people),
