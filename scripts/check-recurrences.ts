@@ -17,8 +17,10 @@ const eq = (label: string, got: unknown, want: unknown) => {
 const rule = (name: string) => CHANTIERS.find((c) => c.name.startsWith(name))!.rules[0];
 const dates = (name: string, to = "2026-12-31") => occurrences(rule(name), START, to).map((o) => o.date);
 
-eq("Wiesmes et Anders", dates("Wiesmes").slice(0, 3), ["2026-10-28", "2026-11-11", "2026-11-25"]);
-eq("Polimage et Hannut", dates("Polimage").slice(0, 3), ["2026-11-04", "2026-11-18", "2026-12-02"]);
+eq("Wiesmes", dates("Wiesmes").slice(0, 3), ["2026-10-28", "2026-11-11", "2026-11-25"]);
+eq("Anders", dates("Anders").slice(0, 3), ["2026-10-28", "2026-11-11", "2026-11-25"]);
+eq("Hannut", dates("Hannut").slice(0, 3), ["2026-11-04", "2026-11-18", "2026-12-02"]);
+eq("Polimage", dates("Polimage").slice(0, 3), ["2026-11-04", "2026-11-18", "2026-12-02"]);
 const wa = new Set(dates("Wiesmes", "2027-12-31")), ph = dates("Polimage", "2027-12-31");
 eq("Wiesmes/Polimage : jamais la même semaine, chaque mercredi couvert", ph.every((d) => !wa.has(d) && (wa.has(addDays(d, 7)) || addDays(d, 7) > "2027-12-31")), true);
 eq("Netcom", dates("Netcom").slice(0, 3), ["2026-10-28", "2026-11-11", "2026-11-25"]);
@@ -34,7 +36,8 @@ eq("Chimisco : alternance stable quand on calcule à partir d'une autre date", o
 
 eq("AIS1 (1er jeudi)", dates("AIS1", "2027-01-31"), ["2026-11-05", "2026-12-03", "2027-01-07"]);
 eq("Commun Marche (2e jeudi)", dates("Commun Marche", "2027-01-31"), ["2026-11-12", "2026-12-10", "2027-01-14"]);
-eq("Galère (dernier mercredi)", dates("Galère", "2027-01-31"), ["2026-10-28", "2026-11-25", "2026-12-30", "2027-01-27"]);
+eq("Notaire Balthazar (dernier mercredi)", dates("Notaire Balthazar", "2027-01-31"), ["2026-10-28", "2026-11-25", "2026-12-30", "2027-01-27"]);
+eq("Galaire (dernier mercredi)", dates("Galaire", "2027-01-31"), ["2026-10-28", "2026-11-25", "2026-12-30", "2027-01-27"]);
 eq("Tec vitres (dernier jeudi)", dates("Tec vitres", "2027-01-31"), ["2026-10-29", "2026-11-26", "2026-12-31", "2027-01-28"]);
 eq("Bièvre (1er samedi)", dates("Bièvre", "2027-01-31"), ["2026-11-07", "2026-12-05", "2027-01-02"]);
 eq("5e jeudi inexistant", nthWeekdayOfMonth(2027, 2, 3, 5), null);

@@ -3,7 +3,18 @@
 import type { Gite, Recurrence } from "../../src/lib/types";
 
 export type Rule = Pick<Recurrence, "freq" | "interval" | "days" | "nth" | "weekday" | "startDate"> & { variants?: string[] };
-export type Chantier = { name: string; kind?: Gite["kind"]; rules: Rule[] };
+export type Chantier = { name: string; kind?: Gite["kind"]; city?: string; rules: Rule[] };
+
+/**
+ * Lieux déjà importés sous un ancien nom : renommés (avec leurs passages) avant l'import.
+ * Précisions de Sandrine du 27/10 : les groupes du mercredi sont 4 chantiers séparés,
+ * et « Galère / notaire / forage » = Galaire et Notaire Balthazar, tous deux à Bouge.
+ */
+export const RENAMES: { from: string; to: string }[] = [
+  { from: "Wiesmes et Anders", to: "Wiesmes" },
+  { from: "Polimage et Hannut", to: "Polimage" },
+  { from: "Galère / notaire / forage (intitulé à confirmer)", to: "Galaire" },
+];
 
 /** Premier jour planifié (le lendemain de l'envoi du récapitulatif). */
 export const START = "2026-10-28";
@@ -40,8 +51,10 @@ export const CHANTIERS: Chantier[] = [
   { name: "Chimisco", rules: [{ ...weekly(JEU), startDate: "2026-10-29", variants: ["Soirée", "Journée"] }] },
 
   // 2. Tous les 15 jours (Wiesmes et Anders / Polimage et Hannut en alternance, une semaine sur deux)
-  { name: "Wiesmes et Anders", rules: [every15(MER, "2026-10-28")] },
-  { name: "Polimage et Hannut", rules: [every15(MER, "2026-11-04")] },
+  { name: "Wiesmes", rules: [every15(MER, "2026-10-28")] },
+  { name: "Anders", rules: [every15(MER, "2026-10-28")] },
+  { name: "Polimage", rules: [every15(MER, "2026-11-04")] },
+  { name: "Hannut", rules: [every15(MER, "2026-11-04")] },
   { name: "Netcom", rules: [every15(MER, "2026-10-28")] },
   { name: "Soyeur Bastogne", rules: [every15(JEU, "2026-10-29")] },
   { name: "Kiné", rules: [every15(SAM, "2026-10-31")] },
@@ -50,7 +63,8 @@ export const CHANTIERS: Chantier[] = [
   { name: "AIS1", rules: [monthly(1, JEU)] },
   { name: "AIS2", rules: [monthly(1, JEU)] },
   { name: "Commun Marche", rules: [monthly(2, JEU)] },
-  { name: "Galère / notaire / forage (intitulé à confirmer)", rules: [monthly(-1, MER)] },
+  { name: "Galaire", city: "Bouge", rules: [monthly(-1, MER)] },
+  { name: "Notaire Balthazar", city: "Bouge", rules: [monthly(-1, MER)] },
   { name: "Tec vitres", rules: [monthly(-1, JEU)] },
   { name: "Bièvre", rules: [monthly(1, SAM)] },
 ];
