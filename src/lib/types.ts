@@ -81,9 +81,36 @@ export type Mission = {
   notifyAdmin?: boolean;
   notifyOwner?: string | null; // CONFIRMED | REFUSED | MOVED | CANCELLED → e-mail à envoyer au client
   cancelledBy?: string;
+  recurrenceId?: string | null; // passage généré par un passage régulier
+  occurrenceDate?: string | null; // date prévue par la série (avant un éventuel déplacement)
+  variant?: string | null; // alternance : « Journée », « Soirée »…
+  recurrenceException?: boolean; // modifié à la main : la série n'y touche plus
   createdAt?: string;
   updatedAt?: string;
   doneAt?: string | null;
+};
+
+/**
+ * recurrences/{id} — passage régulier d'un lieu. Les passages sont créés à l'avance
+ * (voir src/lib/recurrence.ts) et prolongés automatiquement.
+ */
+export type Recurrence = {
+  id: string;
+  giteId: string;
+  freq: "WEEKLY" | "MONTHLY";
+  interval: number; // WEEKLY : toutes les n semaines (1 = chaque semaine, 2 = tous les 15 jours)
+  days: number[]; // WEEKLY : jours de la semaine (0 = lundi … 6 = dimanche)
+  nth: number; // MONTHLY : 1er, 2e, 3e, 4e… ou -1 = dernier
+  weekday: number; // MONTHLY : jour de la semaine (0 = lundi)
+  startDate: string; // AAAA-MM-JJ, première semaine (ou premier mois) de la série
+  endDate?: string | null;
+  time?: string | null;
+  variants?: string[]; // alternance d'une occurrence à l'autre, ex. ["Soirée", "Journée"]
+  note?: string | null;
+  active: boolean;
+  generatedUntil?: string | null; // passages créés jusqu'à cette date
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 /** submissions/{giteId_period} */

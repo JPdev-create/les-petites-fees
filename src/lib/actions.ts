@@ -7,7 +7,8 @@ import { sendSignInLinkToEmail } from "firebase/auth";
 import { fb, absoluteUrl } from "./firebase";
 import { addDays, euros, formatDate, periodBounds, periodLabel, periodOf, todayISO } from "./format";
 import { durationLabel } from "./pricing";
-import type { Gite, Mission, MissionStatus, Profile, Settings } from "./types";
+import { HORIZON_DAYS, isUntouchedOccurrence, occurrenceId, occurrenceMission, occurrences, recurrenceLabel } from "./recurrence";
+import type { Gite, Mission, MissionStatus, Profile, Recurrence, Settings } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 const now = () => new Date().toISOString();
@@ -105,6 +106,7 @@ export async function moveMission(m: Mission, date: string, time: string | null,
   await updateDoc(doc(db(), "missions", m.id), {
     date, dateTo: null, time, status: "CONFIRMED", notifyOwner: "MOVED", notifyAdmin: false, updatedAt: now(),
     adminNote: note ?? m.adminNote ?? null,
+    ...(m.recurrenceId ? { recurrenceException: true } : {}),
   });
   await log(by, `${m.giteName} : passage déplacé du ${formatDate(m.date, "short")} au ${formatDate(date, "short")}`);
 }
@@ -122,23 +124,124 @@ export async function updateMission(id: string, patch: Partial<Mission>) {
 }
 
 export async function deleteMission(id: string) {
-  await deleteDoc(doc(db(), "missions", id));
+  const batch = writeBatch(db());
+  batch.delete(doc(db(), "missions", id));
+  batch.delete(doc(db(), "missionNotes", id));
+  await batch.commit();
+}
+
+/** Note interne d'un passage : stockée à part, car le client peut lire ses passages. */
+export async function saveMissionNote(id: string, text: string, by: string) {
+  const ref = doc(db(), "missionNotes", id);
+  if (text.trim()) await setDoc(ref, { text: text.trim(), by, updatedAt: now() });
+  else await deleteDoc(ref);
 }
 
 export async function adminCreateMissions(gite: Gite, dates: string[], opts: { time?: string | null; status: MissionStatus; note?: string; notify: boolean }, by: string) {
   const batch = writeBatch(db());
   const t = now();
   for (const date of dates) {
-    batch.set(doc(collection(db(), "missions")), {
+    const ref = doc(collection(db(), "missions"));
+    batch.set(ref, {
       giteId: gite.id, giteName: gite.name, giteColor: gite.color, ownerEmail: gite.ownerEmail, ownerName: gite.ownerName,
       date, time: opts.time || gite.defaultTime || null, status: opts.status, source: "ADMIN",
-      urgent: false, extraLinen: false, ownerNote: null, adminNote: opts.note?.trim() || null,
+      urgent: false, extraLinen: false, ownerNote: null, adminNote: null,
       price: gite.price, notifyAdmin: false, notifyOwner: opts.notify && opts.status === "CONFIRMED" ? "CONFIRMED" : null,
       createdAt: t, updatedAt: t, doneAt: opts.status === "DONE" ? t : null,
     });
+    if (opts.note?.trim()) batch.set(doc(db(), "missionNotes", ref.id), { text: opts.note.trim(), by, updatedAt: t });
   }
   await batch.commit();
   await log(by, `${dates.length} passage(s) ajouté(s) pour ${gite.name}`);
+}
+
+/* ------------------------- Passages réguliers ------------------------- */
+
+const horizon = () => addDays(todayISO(), HORIZON_DAYS);
+
+/** Jours où le lieu a déjà un passage hors série (demande du client, iCal, ajout manuel) : pas de doublon. */
+async function manualDates(giteId: string, from: string, to: string) {
+  const snap = await getDocs(query(collection(db(), "missions"), where("giteId", "==", giteId), where("date", ">=", from), where("date", "<=", to)));
+  return new Set(snap.docs.map((d) => d.data() as Mission).filter((m) => !m.recurrenceId && m.status !== "CANCELLED" && m.status !== "REFUSED").map((m) => m.date));
+}
+
+/**
+ * Prolonge une série jusqu'à l'horizon (passages créés à partir du lendemain de `generatedUntil`).
+ * Transaction : si un autre appareil ou l'automatisation l'a déjà fait, rien n'est créé deux fois.
+ */
+export async function extendRecurrence(r: Recurrence, gite: Gite) {
+  const until = horizon();
+  if (!r.active || (r.generatedUntil ?? "") >= until) return 0;
+  const from = r.generatedUntil && r.generatedUntil >= todayISO() ? addDays(r.generatedUntil, 1) : todayISO();
+  const skip = await manualDates(gite.id, from, until);
+  return runTransaction(db(), async (tx) => {
+    const ref = doc(db(), "recurrences", r.id);
+    const fresh = await tx.get(ref);
+    if (!fresh.exists() || (fresh.data().generatedUntil ?? "") !== (r.generatedUntil ?? "")) return 0;
+    const t = now();
+    const list = occurrences(r, from, until).filter((o) => !skip.has(o.date));
+    for (const o of list) tx.set(doc(db(), "missions", occurrenceId(r.id, o.date)), occurrenceMission(r, gite, o, t));
+    tx.update(ref, { generatedUntil: until });
+    return list.length;
+  });
+}
+
+/**
+ * Recalcule les passages à venir d'une série (création ou modification de la règle).
+ * Les passages déjà déplacés, annulés ou effectués sont conservés tels quels.
+ */
+async function regenerate(r: Recurrence, gite: Gite) {
+  const today = todayISO();
+  const until = horizon();
+  const snap = await getDocs(query(collection(db(), "missions"), where("recurrenceId", "==", r.id)));
+  const batch = writeBatch(db());
+  const kept = new Set<string>();
+  const stale = new Set<string>();
+  for (const d of snap.docs) {
+    const m = { id: d.id, ...d.data() } as Mission;
+    if ((m.occurrenceDate ?? m.date) < today) continue;
+    if (isUntouchedOccurrence(m)) stale.add(d.id);
+    else kept.add(m.occurrenceDate ?? m.date);
+  }
+  const skip = await manualDates(gite.id, today, until);
+  const t = now();
+  const list = r.active ? occurrences(r, today, until).filter((o) => !kept.has(o.date) && !skip.has(o.date)) : [];
+  for (const o of list) {
+    const oid = occurrenceId(r.id, o.date);
+    stale.delete(oid);
+    batch.set(doc(db(), "missions", oid), occurrenceMission(r, gite, o, t));
+  }
+  for (const oid of stale) batch.delete(doc(db(), "missions", oid));
+  batch.update(doc(db(), "recurrences", r.id), { generatedUntil: r.active ? until : null });
+  await batch.commit();
+  return list.length;
+}
+
+export type RecurrenceInput = Omit<Recurrence, "id" | "generatedUntil" | "createdAt" | "updatedAt">;
+
+export async function saveRecurrence(data: RecurrenceInput, id: string | null, gite: Gite, by: string) {
+  const t = now();
+  const clean = { ...data, variants: (data.variants ?? []).map((v) => v.trim()).filter(Boolean), note: data.note?.trim() || null, time: data.time || null, endDate: data.endDate || null };
+  let recId = id;
+  if (recId) await updateDoc(doc(db(), "recurrences", recId), { ...clean, updatedAt: t });
+  else recId = (await addDoc(collection(db(), "recurrences"), { ...clean, generatedUntil: null, createdAt: t, updatedAt: t })).id;
+  const n = await regenerate({ ...clean, id: recId, generatedUntil: null }, gite);
+  await log(by, `${gite.name} : passage régulier ${id ? "modifié" : "ajouté"} (${recurrenceLabel(clean)}) — ${n} passage(s) planifié(s)`);
+  return n;
+}
+
+/** Supprime la série et ses passages à venir non modifiés (l'historique est conservé). */
+export async function deleteRecurrence(r: Recurrence, giteName: string, by: string) {
+  const today = todayISO();
+  const snap = await getDocs(query(collection(db(), "missions"), where("recurrenceId", "==", r.id)));
+  const batch = writeBatch(db());
+  for (const d of snap.docs) {
+    const m = { id: d.id, ...d.data() } as Mission;
+    if (m.date >= today && isUntouchedOccurrence(m)) batch.delete(d.ref);
+  }
+  batch.delete(doc(db(), "recurrences", r.id));
+  await batch.commit();
+  await log(by, `${giteName} : passage régulier supprimé (${recurrenceLabel(r)})`);
 }
 
 /* ------------------------------ Gîtes ------------------------------ */
@@ -199,6 +302,8 @@ export async function deleteGite(g: Gite, by: string) {
     const m = d.data() as Mission;
     if (m.status !== "DONE") batch.delete(d.ref);
   });
+  const series = await getDocs(query(collection(db(), "recurrences"), where("giteId", "==", g.id)));
+  series.docs.forEach((d) => batch.delete(d.ref));
   batch.delete(doc(db(), "gites", g.id));
   await batch.commit();
   await log(by, `Lieu supprimé : ${g.name}`);

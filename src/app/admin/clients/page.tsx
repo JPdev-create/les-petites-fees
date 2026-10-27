@@ -31,6 +31,7 @@ export default function ClientsPage() {
     const email = edit.form.email.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(email)) return toast("Adresse e-mail invalide", "error");
     if (edit.isNew && profiles.some((p) => p.id === email)) return toast("Cette adresse existe déjà", "error");
+    if (email === me.id && (!edit.form.active || edit.form.role !== "ADMIN")) return toast("Vous ne pouvez pas désactiver votre propre accès gestionnaire", "error");
     setBusy(true);
     try {
       await saveProfile({ ...edit.form, email }, me.name, edit.isNew);

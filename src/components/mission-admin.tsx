@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Clock } from "lucide-react";
+import Link from "next/link";
+import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Clock, Ban } from "lucide-react";
 import type { Gite, Mission, MissionStatus } from "@/lib/types";
 import { SOURCE, euros, formatDate, relativeDay, todayISO, periodOf, timeAgo, addDays, missionWhen } from "@/lib/format";
-import { deleteMission, moveMission, setMissionsStatus, updateMission, adminCreateMissions, completeMissions, confirmOnDate } from "@/lib/actions";
+import { deleteMission, moveMission, setMissionsStatus, adminCreateMissions, completeMissions, confirmOnDate, saveMissionNote } from "@/lib/actions";
+import { useLiveDoc } from "@/lib/hooks";
 import { durationLabel, hourlyAmount, isHourly, missionPriceLabel } from "@/lib/pricing";
+import { missionTitle, recurrenceLabel } from "@/lib/recurrence";
 import { useAdmin } from "./admin-data";
 import { Field, Modal, Spinner, StatusBadge, Toggle } from "./ui";
 import { MonthPicker } from "./month-picker";
@@ -26,7 +29,8 @@ export function MissionLine({ m, onClick, showOwner = true, right }: { m: Missio
       <span className="h-10 w-1 shrink-0 rounded-full" style={{ background: m.giteColor }} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <p className="truncate font-semibold">{m.giteName}</p>
+          <p className="truncate font-semibold">{missionTitle(m)}</p>
+          {m.recurrenceId && <Repeat className="size-3.5 text-brand-600" aria-label="Passage régulier" />}
           {m.urgent && <span className="badge bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300"><Zap className="size-3" />Urgent</span>}
           {m.extraLinen && <Shirt className="size-3.5 text-violet-500" aria-label="Linge supplémentaire" />}
           {m.dateTo && <span className="badge bg-brand-100 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200">Période</span>}
@@ -36,7 +40,7 @@ export function MissionLine({ m, onClick, showOwner = true, right }: { m: Missio
           {rel ? <strong className="font-semibold text-zinc-700 dark:text-zinc-300">{rel} · </strong> : null}
           {missionWhen(m)}
           {m.time ? ` · ${m.time}` : ""}
-          {showOwner ? ` · ${m.ownerName}` : ""}
+          {showOwner && m.ownerName ? ` · ${m.ownerName}` : ""}
         </p>
       </div>
       {right ?? <StatusBadge status={m.status} />}
@@ -46,7 +50,7 @@ export function MissionLine({ m, onClick, showOwner = true, right }: { m: Missio
 
 /** Fiche d'un passage : valider, refuser, déplacer, marquer effectué, notes. */
 export function MissionDialog({ mission, onClose }: { mission: Mission | null; onClose: () => void }) {
-  const { me, giteById, missions } = useAdmin();
+  const { me, giteById, missions, recurrences } = useAdmin();
   const live = mission ? missions.find((x) => x.id === mission.id) ?? mission : null;
   const [mode, setMode] = useState<"view" | "move" | "refuse" | "done" | "pick">("view");
   const [worked, setWorked] = useState(120);
@@ -55,7 +59,10 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
   const [time, setTime] = useState("");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
+  const [internal, setInternal] = useState("");
   const [busy, setBusy] = useState(false);
+  const saved = useLiveDoc<{ text: string }>(mission ? `missionNotes/${mission.id}` : null);
+  useEffect(() => setInternal(saved.data?.text ?? ""), [saved.data?.text]);
 
   useEffect(() => {
     if (!mission) return;
@@ -87,6 +94,7 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
   };
   const hourly = isHourly(gite) && (gite?.hourlyRate ?? 0) > 0;
   const done = () => (hourly ? setMode("done") : run(() => completeMissions([{ m }], giteById, me.name), "Passage marqué comme effectué"));
+  const series = m.recurrenceId ? recurrences.find((r) => r.id === m.recurrenceId) : undefined;
   const sameDay = missions.filter((x) => x.date === m.date && x.id !== m.id && x.status !== "CANCELLED" && x.status !== "REFUSED");
 
   return (
@@ -95,7 +103,7 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
       onClose={onClose}
       title={
         <span className="flex items-center gap-2">
-          <span className="size-3 rounded-full" style={{ background: m.giteColor }} /> {m.giteName}
+          <span className="size-3 rounded-full" style={{ background: m.giteColor }} /> {missionTitle(m)}
         </span>
       }
       footer={
@@ -140,6 +148,9 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
             )}
             {m.status === "CONFIRMED" && (
               <>
+                <button className="btn-secondary" disabled={busy} onClick={async () => (await askConfirm({ title: "Annuler ce passage ?", message: `${missionTitle(m)} — ${formatDate(m.date)}.${m.recurrenceId ? " Les passages suivants de la série ne changent pas." : ""}${m.ownerName ? " Le client sera prévenu." : ""}`, confirmLabel: "Annuler le passage", danger: true })) && run(() => setMissionsStatus([m.id], "CANCELLED", me.name), "Passage annulé")}>
+                  <Ban className="size-4" /> Annuler
+                </button>
                 <button className="btn-secondary" onClick={() => setMode("move")}><CalendarClock className="size-4" /> Déplacer</button>
                 <button className="btn-success" disabled={busy} onClick={done}>
                   <CheckCheck className="size-4" /> Effectué
@@ -207,21 +218,28 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             <div><dt className="muted text-xs">{m.dateTo ? "Période souhaitée" : "Date"}</dt><dd className="font-semibold">{m.dateTo ? missionWhen(m) : formatDate(m.date)}</dd></div>
             <div><dt className="muted text-xs">Heure</dt><dd className="font-semibold">{m.time || "—"}</dd></div>
-            <div><dt className="muted text-xs">Client</dt><dd className="font-semibold">{m.ownerName}</dd></div>
+            <div><dt className="muted text-xs">Client</dt><dd className="font-semibold">{m.ownerName || "—"}</dd></div>
             <div><dt className="muted text-xs">Prix HTVA</dt><dd className="font-semibold">{m.workedMin ? missionPriceLabel(m) : hourly ? `≈ ${euros(m.price)} (${euros(gite!.hourlyRate!)}/h)` : euros(m.price)}</dd></div>
             <div><dt className="muted text-xs">Origine</dt><dd>{SOURCE[m.source]}{m.icalSource ? ` (${m.icalSource})` : ""}</dd></div>
             <div><dt className="muted text-xs">Mis à jour</dt><dd>{m.updatedAt ? timeAgo(m.updatedAt) : "—"}</dd></div>
           </dl>
           {gite && (
             <div className="space-y-2 rounded-2xl bg-zinc-50 p-4 text-sm dark:bg-white/[0.03]">
-              <p className="flex gap-2"><MapPin className="mt-0.5 size-4 shrink-0 text-brand-600" />
+              {gite.address && <p className="flex gap-2"><MapPin className="mt-0.5 size-4 shrink-0 text-brand-600" />
                 <a className="hover:underline" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${gite.address} ${gite.postalCode ?? ""} ${gite.city ?? ""}`)}`}>
                   {gite.address}{gite.city ? `, ${gite.postalCode ?? ""} ${gite.city}` : ""}
                 </a>
-              </p>
+              </p>}
               {gite.accessInfo && <p className="flex gap-2"><KeyRound className="mt-0.5 size-4 shrink-0 text-brand-600" /> {gite.accessInfo}</p>}
               <p className="flex gap-2"><Shirt className="mt-0.5 size-4 shrink-0 text-brand-600" /> {gite.bedSets} parure(s) de lit · {gite.towelSets} jeu(x) de serviettes{m.extraLinen ? " + linge supplémentaire demandé" : ""}</p>
             </div>
+          )}
+          {m.recurrenceId && (
+            <p className="flex items-center gap-2 rounded-2xl bg-brand-50 px-4 py-3 text-sm text-brand-900 dark:bg-brand-500/10 dark:text-brand-200">
+              <Repeat className="size-4 shrink-0" />
+              <span className="flex-1">Passage régulier{series ? ` (${recurrenceLabel(series)})` : ""} : le déplacer ou l&apos;annuler ne touche qu&apos;à cette date.</span>
+              <Link href="/admin/reguliers/" className="font-semibold underline">Gérer</Link>
+            </p>
           )}
           {m.ownerNote && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-400/20 dark:bg-amber-400/5">
@@ -233,17 +251,19 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
           {sameDay.length > 0 && (
             <p className="muted text-xs">Ce jour-là : {sameDay.length} autre(s) passage(s) — {sameDay.map((x) => x.giteName).join(", ")}</p>
           )}
+          {m.adminNote && <p className="text-sm"><span className="muted">Message au client : </span>{m.adminNote}</p>}
+          {series?.note && <p className="text-sm"><span className="muted">Note de la série : </span>{series.note}</p>}
           <Field label="Note interne">
             <div className="flex gap-2">
-              <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Visible uniquement par les gestionnaires" />
-              {note !== (m.adminNote ?? "") && (
-                <button className="btn-secondary" onClick={() => updateMission(m.id, { adminNote: note }).then(() => toast("Note enregistrée"))}>OK</button>
+              <input className="input" value={internal} onChange={(e) => setInternal(e.target.value)} placeholder="Visible uniquement par les gestionnaires" />
+              {internal !== (saved.data?.text ?? "") && (
+                <button className="btn-secondary" onClick={() => saveMissionNote(m.id, internal, me.name).then(() => toast("Note enregistrée"), () => toast("Enregistrement impossible", "error"))}>OK</button>
               )}
             </div>
           </Field>
           <button
             className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-600 hover:underline"
-            onClick={async () => (await askConfirm({ title: "Supprimer ce passage ?", message: `${m.giteName} — ${formatDate(m.date)}. Cette action est définitive.`, confirmLabel: "Supprimer", danger: true })) && run(() => deleteMission(m.id), "Passage supprimé")}
+            onClick={async () => (await askConfirm({ title: "Supprimer ce passage ?", message: `${missionTitle(m)} — ${formatDate(m.date)}. Cette action est définitive.`, confirmLabel: "Supprimer", danger: true })) && run(() => deleteMission(m.id), "Passage supprimé")}
           >
             <Trash2 className="size-3.5" /> Supprimer ce passage
           </button>
@@ -320,7 +340,7 @@ export function NewMissionDialog({ open, onClose, defaultDate, defaultGiteId }: 
           <Field label="Lieu">
             <select className="input" value={giteId} onChange={(e) => setGiteId(e.target.value)}>
               <option value="">Choisir un gîte ou un lieu…</option>
-              {activeGites.map((g) => <option key={g.id} value={g.id}>{g.name} — {g.ownerName}</option>)}
+              {activeGites.map((g) => <option key={g.id} value={g.id}>{g.name}{g.ownerName ? ` — ${g.ownerName}` : ""}</option>)}
             </select>
           </Field>
           <div className="mt-4">

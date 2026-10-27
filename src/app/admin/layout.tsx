@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, CalendarDays, Inbox, Home, Users, Package, Settings as Cog, LogOut, Menu, X, Bell,
+  LayoutDashboard, CalendarDays, Inbox, Home, Users, Package, Settings as Cog, LogOut, Menu, X, Bell, Repeat,
 } from "lucide-react";
 import { AuthProvider, RequireRole, logout } from "@/components/auth";
 import { AdminDataProvider, useAdmin } from "@/components/admin-data";
@@ -13,6 +13,7 @@ import { Logo, Splash, ThemeToggle } from "@/components/ui";
 const NAV = [
   { href: "/admin/", label: "Tableau de bord", icon: LayoutDashboard, exact: true },
   { href: "/admin/calendrier/", label: "Calendrier", icon: CalendarDays },
+  { href: "/admin/reguliers/", label: "Passages réguliers", icon: Repeat },
   { href: "/admin/demandes/", label: "Demandes", icon: Inbox, badge: "pending" },
   { href: "/admin/lieux/", label: "Gîtes & lieux", icon: Home },
   { href: "/admin/clients/", label: "Clients", icon: Users },

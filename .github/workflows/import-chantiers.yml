@@ -1,0 +1,37 @@
+# Import ponctuel des chantiers réguliers (scripts/lib/chantiers.ts) — à lancer à la main
+# depuis l'onglet « Actions » de GitHub. Peut être relancé sans créer de doublons.
+name: Importer les chantiers réguliers
+
+on:
+  workflow_dispatch:
+    inputs:
+      simulation:
+        description: "Simulation (afficher sans rien enregistrer)"
+        type: boolean
+        default: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check:recurrences
+      - name: Importer
+        env:
+          TZ: Europe/Brussels
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: npx tsx scripts/import-chantiers.ts ${{ inputs.simulation && '--dry-run' || '' }}
+      # Les règles Firestore autorisent la nouvelle collection « recurrences » (page « Passages réguliers »).
+      - name: Publier les règles Firestore
+        if: ${{ !inputs.simulation }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx firebase deploy --only firestore --non-interactive

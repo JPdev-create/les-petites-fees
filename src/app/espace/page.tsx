@@ -8,6 +8,7 @@ import { OwnerMissionSheet } from "@/components/owner-mission";
 import { InstallPrompt } from "@/components/pwa";
 import { Spinner, StatusBadge } from "@/components/ui";
 import { currentPeriod, euros, formatDate, periodLabel, relativeDay, shiftPeriod, todayISO, capitalize, missionWhen } from "@/lib/format";
+import { missionTitle } from "@/lib/recurrence";
 import type { Mission } from "@/lib/types";
 
 export default function OwnerHome() {
@@ -101,7 +102,7 @@ export default function OwnerHome() {
                   <span className="font-display text-lg font-semibold leading-none">{Number(m.date.slice(8))}{m.dateTo ? <span className="text-xs">–{Number(m.dateTo.slice(8))}</span> : null}</span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{gites.length > 1 ? m.giteName : m.dateTo ? missionWhen(m) : rel ?? formatDate(m.date, "medium")}</p>
+                  <p className="truncate font-semibold">{gites.length > 1 ? missionTitle(m) : m.dateTo ? missionWhen(m) : rel ?? formatDate(m.date, "medium")}</p>
                   <p className="muted flex items-center gap-1 text-[13px]">
                     <Clock className="size-3.5" />{m.dateTo ? (gites.length > 1 ? missionWhen(m) : "Jour à fixer par l'équipe") : m.time ?? "Horaire à convenir"}{gites.length > 1 && rel && !m.dateTo ? ` · ${rel}` : ""}
                   </p>

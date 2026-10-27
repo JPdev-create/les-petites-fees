@@ -6,6 +6,7 @@ import { useOwner } from "@/components/owner-data";
 import { OwnerMissionSheet } from "@/components/owner-mission";
 import { Empty, Segmented, StatusBadge } from "@/components/ui";
 import { capitalize, formatDate, periodLabel, relativeDay, todayISO, missionWhen } from "@/lib/format";
+import { missionTitle } from "@/lib/recurrence";
 import type { Mission } from "@/lib/types";
 
 export default function HistoryPage() {
@@ -49,7 +50,7 @@ export default function HistoryPage() {
                   <span className="h-9 w-1 rounded-full" style={{ background: m.giteColor }} />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{capitalize(missionWhen(m))}</p>
-                    <p className="muted truncate text-[13px]">{relativeDay(m.date) ? `${relativeDay(m.date)} · ` : ""}{gites.length > 1 ? `${m.giteName} · ` : ""}{m.time ?? "Horaire à convenir"}{m.source === "ICAL" ? ` · ${m.icalSource ?? "iCal"}` : ""}</p>
+                    <p className="muted truncate text-[13px]">{relativeDay(m.date) ? `${relativeDay(m.date)} · ` : ""}{gites.length > 1 ? `${missionTitle(m)} · ` : ""}{m.time ?? "Horaire à convenir"}{m.source === "ICAL" ? ` · ${m.icalSource ?? "iCal"}` : ""}</p>
                   </div>
                   <StatusBadge status={m.status} />
                 </button>
