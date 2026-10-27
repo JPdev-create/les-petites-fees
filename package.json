@@ -13,6 +13,7 @@
     "create-admin": "tsx scripts/create-admin.ts",
     "import:chantiers": "tsx scripts/import-chantiers.ts",
     "check:recurrences": "tsx scripts/check-recurrences.ts",
+    "sync:pointeuse": "tsx scripts/sync-pointeuse.ts",
     "deploy:rules": "firebase deploy --only firestore",
     "typecheck": "tsc --noEmit",
     "guide:pdf": "next build && node scripts/guide-pdf.mjs"

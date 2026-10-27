@@ -19,8 +19,8 @@ export default function SettingsPage() {
   const save = async () => {
     setBusy(true);
     try {
-      const { lastReminderRun, lastAutomationRun, syncRequestedAt, ...rest } = s;
-      void lastReminderRun; void lastAutomationRun; void syncRequestedAt;
+      const { lastReminderRun, lastAutomationRun, syncRequestedAt, lastPointeuseRun, pointeuseError, ...rest } = s;
+      void lastReminderRun; void lastAutomationRun; void syncRequestedAt; void lastPointeuseRun; void pointeuseError;
       await saveSettings(rest);
       toast("Paramètres enregistrés");
     } catch {
@@ -88,6 +88,12 @@ export default function SettingsPage() {
           <button className="btn-secondary h-auto min-h-10 whitespace-normal py-2 text-left" onClick={() => saveSettings({ syncRequestedAt: new Date().toISOString() }).then(() => toast("Synchronisation demandée"))}>
             <RefreshCw className="size-4" /> Synchroniser les calendriers au prochain passage
           </button>
+          <p className="muted text-sm">
+            <strong className="text-zinc-800 dark:text-zinc-200">Pointeuse LPF</strong> : les passages confirmés des 6 prochaines semaines y sont envoyés toutes les heures.{" "}
+            {settings.pointeuseError
+              ? <span className="text-rose-600">Dernier envoi en erreur : {settings.pointeuseError}</span>
+              : settings.lastPointeuseRun ? <>Dernier envoi {timeAgo(settings.lastPointeuseRun)}.</> : <>Pas encore configurée.</>}
+          </p>
         </section>
       </div>
     </>

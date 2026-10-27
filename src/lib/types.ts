@@ -50,6 +50,7 @@ export type Gite = {
   icalLastError?: string | null;
   active: boolean;
   pendingReview?: boolean; // ajouté par le client, tarif à vérifier
+  pointeuseChantierId?: string; // chantier correspondant dans la Pointeuse LPF
   notifyAdmin?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -151,6 +152,8 @@ export type Settings = {
   defaultHourlyRate: number;
   lastReminderRun?: string;
   lastAutomationRun?: string;
+  lastPointeuseRun?: string; // dernier envoi du planning vers la Pointeuse LPF
+  pointeuseError?: string | null;
   syncRequestedAt?: string | null;
 };
 

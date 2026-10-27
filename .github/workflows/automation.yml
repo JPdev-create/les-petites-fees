@@ -30,6 +30,7 @@ jobs:
         env:
           TZ: Europe/Brussels
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          POINTEUSE_SERVICE_ACCOUNT: ${{ secrets.POINTEUSE_SERVICE_ACCOUNT }}
           APP_URL: ${{ vars.APP_URL || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
