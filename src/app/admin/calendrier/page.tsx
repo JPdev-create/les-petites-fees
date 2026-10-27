@@ -8,6 +8,7 @@ import { Empty, PageHeader, Segmented, StatusBadge } from "@/components/ui";
 import {
   DAYS_LONG, DAYS_SHORT, STATUS, addDays, capitalize, formatDate, monthGrid, periodLabel, periodOf, shiftPeriod, startOfWeek, todayISO, parseISODate, MONTHS, MONTHS_SHORT,
 } from "@/lib/format";
+import { missionTitle } from "@/lib/recurrence";
 import type { Mission } from "@/lib/types";
 import { CalendarDays } from "lucide-react";
 
@@ -156,9 +157,9 @@ export default function CalendarPage() {
                           onClick={(e) => { e.stopPropagation(); setOpen(m); }}
                           className={`flex w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium ${m.status === "REQUESTED" ? "border border-dashed border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-200" : m.status === "DONE" ? "bg-emerald-50 text-emerald-900 dark:bg-emerald-400/10 dark:text-emerald-200" : m.status === "CONFIRMED" ? "text-white" : "bg-zinc-100 text-zinc-500 line-through dark:bg-white/5"}`}
                           style={m.status === "CONFIRMED" ? { background: m.giteColor } : undefined}
-                          title={`${m.giteName} · ${STATUS[m.status].label}`}
+                          title={`${missionTitle(m)} · ${STATUS[m.status].label}`}
                         >
-                          {m.status === "DONE" ? <span aria-label="Effectué">✓</span> : m.dateTo ? <span aria-label="Période">⇄</span> : m.time && <span className="opacity-80">{m.time}</span>} <span className="truncate">{m.giteName}</span>
+                          {m.status === "DONE" ? <span aria-label="Effectué">✓</span> : m.dateTo ? <span aria-label="Période">⇄</span> : m.time && <span className="opacity-80">{m.time}</span>} <span className="truncate">{missionTitle(m)}</span>
                         </button>
                       ))}
                       {list.length > 3 && <p className="px-1 text-[11px] font-medium text-zinc-500">+ {list.length - 3} autre(s)</p>}
@@ -198,8 +199,8 @@ export default function CalendarPage() {
                 <div className="space-y-1.5">
                   {list.map((m) => (
                     <button key={m.id} onClick={() => setOpen(m)} className="w-full rounded-xl border border-[var(--border)] p-2 text-left text-xs transition hover:shadow-md" style={{ borderLeft: `4px solid ${m.giteColor}` }}>
-                      <p className="truncate font-semibold">{m.giteName}</p>
-                      <p className="muted">{m.time || "—"} · {m.ownerName.split(" ")[0]}</p>
+                      <p className="truncate font-semibold">{missionTitle(m)}</p>
+                      <p className="muted">{m.time || "—"}{m.ownerName ? ` · ${m.ownerName.split(" ")[0]}` : ""}</p>
                       <div className="mt-1"><StatusBadge status={m.status} /></div>
                     </button>
                   ))}

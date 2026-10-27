@@ -114,6 +114,8 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Passages réguliers (les passages générés sont dans /missions, lisibles par le client concerné)
+    match /recurrences/{id} { allow read, write: if isAdmin(); }
     match /stock/{id} { allow read, write: if isAdmin(); }
     match /mail/{id} { allow read, write: if isAdmin(); }
     match /activity/{id} { allow read, write: if isAdmin(); }

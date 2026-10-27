@@ -56,7 +56,7 @@ export default function PlacesPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-display font-semibold">{g.name}</p>
-                    <p className="muted truncate text-sm">{g.ownerName}</p>
+                    <p className="muted truncate text-sm">{g.ownerName || "Sans compte client"}</p>
                   </div>
                   <span className="badge bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300">{KIND[g.kind]}</span>
                 </div>
@@ -66,7 +66,7 @@ export default function PlacesPage() {
                   return (
                     <div className="muted mt-1.5 space-y-0.5 text-[13px]">
                       {o?.phone && <p className="flex items-center gap-1.5"><Phone className="size-3.5 shrink-0" /> {o.phone}</p>}
-                      <p className="flex items-center gap-1.5 truncate"><Mail className="size-3.5 shrink-0" /> {g.ownerEmail}</p>
+                      {g.ownerEmail && <p className="flex items-center gap-1.5 truncate"><Mail className="size-3.5 shrink-0" /> {g.ownerEmail}</p>}
                     </div>
                   );
                 })()}

@@ -11,6 +11,8 @@
     "seed": "tsx scripts/seed.ts",
     "automation": "tsx scripts/automation.ts",
     "create-admin": "tsx scripts/create-admin.ts",
+    "import:chantiers": "tsx scripts/import-chantiers.ts",
+    "check:recurrences": "tsx scripts/check-recurrences.ts",
     "deploy:rules": "firebase deploy --only firestore",
     "typecheck": "tsc --noEmit",
     "guide:pdf": "next build && node scripts/guide-pdf.mjs"

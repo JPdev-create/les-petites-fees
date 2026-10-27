@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Plus, X, RefreshCw, Link2, Info, CalendarPlus, Phone, Mail, Navigation, UserRound, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Plus, X, RefreshCw, Link2, Info, CalendarPlus, Phone, Mail, Navigation, UserRound, AlertCircle, Repeat } from "lucide-react";
 import { useAdmin } from "@/components/admin-data";
 import { MissionDialog, MissionLine, NewMissionDialog } from "@/components/mission-admin";
+import { RecurrenceDialog } from "@/components/recurrence-admin";
+import { recurrenceLabel } from "@/lib/recurrence";
 import { Field, PageHeader, Segmented, Spinner, Toggle } from "@/components/ui";
 import { durationLabel, giteUnitPrice, isHourly } from "@/lib/pricing";
 import { toast } from "@/components/toaster";
@@ -13,7 +15,7 @@ import { askConfirm } from "@/components/confirm";
 import { useParam } from "@/lib/hooks";
 import { deleteGite, saveGite, saveSettings } from "@/lib/actions";
 import { COLORS, KIND, euros, formatDateTime, todayISO } from "@/lib/format";
-import type { Gite, IcalFeed, Mission } from "@/lib/types";
+import type { Gite, IcalFeed, Mission, Recurrence } from "@/lib/types";
 
 type Form = Omit<Gite, "id">;
 
@@ -27,12 +29,13 @@ export default function PlaceForm() {
   const id = useParam("id");
   const preClient = useParam("client");
   const router = useRouter();
-  const { gites, owners, missions, me, settings, loading } = useAdmin();
+  const { gites, owners, missions, recurrences, me, settings, loading } = useAdmin();
   const existing = gites.find((g) => g.id === id);
   const [f, setF] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<Mission | null>(null);
   const [adding, setAdding] = useState(false);
+  const [series, setSeries] = useState<Recurrence | "new" | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -63,11 +66,11 @@ export default function PlaceForm() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const owner = owners.find((o) => o.id === f.ownerEmail);
-    if (!owner) return toast("Choisissez le client propriétaire", "error");
+    if (f.ownerEmail && !owner) return toast("Choisissez le client propriétaire", "error");
     setBusy(true);
     try {
       const feeds = f.icalFeeds.filter((x) => x.url.trim()).map((x) => ({ label: x.label.trim() || "iCal", url: x.url.trim() }));
-      const newId = await saveGite({ ...f, pricingMode: f.pricingMode ?? "FLAT", hourlyRate: f.hourlyRate ?? 0, price: giteUnitPrice(f), ownerName: owner.name, icalFeeds: feeds }, id, me.name);
+      const newId = await saveGite({ ...f, pricingMode: f.pricingMode ?? "FLAT", hourlyRate: f.hourlyRate ?? 0, price: giteUnitPrice(f), ownerName: owner?.name ?? "", icalFeeds: feeds }, id, me.name);
       toast(id ? "Fiche enregistrée" : "Lieu créé ✨");
       if (!id) router.replace(`/admin/lieux/fiche/?id=${newId}`);
     } catch (err) {
@@ -87,7 +90,9 @@ export default function PlaceForm() {
 
   const setFeed = (i: number, patch: Partial<IcalFeed>) => set("icalFeeds", f.icalFeeds.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
+  // Les fenêtres sont hors du <form> : leurs boutons ne doivent pas enregistrer la fiche.
   return (
+    <>
     <form onSubmit={submit}>
       <Link href="/admin/lieux/" className="muted mb-3 inline-flex items-center gap-1 text-sm hover:text-zinc-900 dark:hover:text-white"><ArrowLeft className="size-4" /> Tous les lieux</Link>
       <PageHeader
@@ -97,7 +102,7 @@ export default function PlaceForm() {
             {id ? f.name || "Lieu" : "Nouveau lieu"}
           </span>
         }
-        subtitle={id ? `${KIND[f.kind]} · ${f.ownerName}` : "Renseignez les informations du gîte, de l'appartement ou du bureau."}
+        subtitle={id ? `${KIND[f.kind]} · ${f.ownerName || "sans compte client"}` : "Renseignez les informations du gîte, de l'appartement ou du bureau."}
         actions={
           <>
             {id && <button type="button" className="btn-secondary" onClick={() => setAdding(true)}><CalendarPlus className="size-4" /> Planifier</button>}
@@ -124,13 +129,13 @@ export default function PlaceForm() {
                 </select>
               </Field>
             </div>
-            <Field label="Client propriétaire" hint={<>Le client verra ce lieu dans son espace. <Link href="/admin/clients/" className="underline">Gérer les clients</Link></>}>
-              <select className="input" required value={f.ownerEmail} onChange={(e) => set("ownerEmail", e.target.value)}>
-                <option value="">Choisir…</option>
+            <Field label="Client propriétaire" hint={<>Le client verra ce lieu dans son espace. Sans compte client, le lieu n&apos;est visible que par les gestionnaires. <Link href="/admin/clients/" className="underline">Gérer les clients</Link></>}>
+              <select className="input" value={f.ownerEmail} onChange={(e) => set("ownerEmail", e.target.value)}>
+                <option value="">Aucun compte client (géré en interne)</option>
                 {owners.map((o) => <option key={o.id} value={o.id}>{o.name}{o.company ? ` (${o.company})` : ""} — {o.email}</option>)}
               </select>
             </Field>
-            <Field label="Adresse"><input className="input" required value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Rue du Village 12" /></Field>
+            <Field label="Adresse"><input className="input" value={f.address} onChange={(e) => set("address", e.target.value)} placeholder="Rue du Village 12" /></Field>
             <div className="grid grid-cols-[8rem_1fr] gap-4">
               <Field label="Code postal"><input className="input" value={f.postalCode} onChange={(e) => set("postalCode", e.target.value)} placeholder="6900" /></Field>
               <Field label="Localité"><input className="input" value={f.city} onChange={(e) => set("city", e.target.value)} placeholder="Marche-en-Famenne" /></Field>
@@ -260,6 +265,27 @@ export default function PlaceForm() {
 
           {id && (
             <section className="card overflow-hidden">
+              <div className="flex items-center justify-between px-4 pb-2 pt-4">
+                <h2 className="flex items-center gap-2 font-display font-semibold"><Repeat className="size-4 text-brand-600" /> Passages réguliers</h2>
+                <button type="button" className="btn-ghost btn-sm" onClick={() => setSeries("new")}><Plus className="size-3.5" /> Ajouter</button>
+              </div>
+              {recurrences.filter((r) => r.giteId === id).length === 0 ? (
+                <p className="muted px-4 pb-4 text-sm">Aucun. Ajoutez une fréquence (chaque semaine, tous les 15 jours, chaque mois) : les passages seront créés automatiquement.</p>
+              ) : (
+                <div className="divide-y divide-[var(--border)]">
+                  {recurrences.filter((r) => r.giteId === id).map((r) => (
+                    <button key={r.id} type="button" onClick={() => setSeries(r)} className={`block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50 dark:hover:bg-white/[0.03] ${r.active ? "" : "opacity-60"}`}>
+                      <p className="font-medium">{recurrenceLabel(r)}{r.time ? ` · ${r.time}` : ""}</p>
+                      {(r.variants ?? []).length > 0 && <p className="muted text-xs">Alternance : {r.variants!.join(" / ")}</p>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {id && (
+            <section className="card overflow-hidden">
               <h2 className="px-4 pb-2 pt-4 font-display font-semibold">Passages ({history.length})</h2>
               <div className="max-h-96 divide-y divide-[var(--border)] overflow-y-auto">
                 {history.length === 0 && <p className="muted px-4 pb-4 text-sm">Aucun passage.</p>}
@@ -277,8 +303,10 @@ export default function PlaceForm() {
           )}
         </div>
       </div>
+    </form>
       <MissionDialog mission={open} onClose={() => setOpen(null)} />
       {id && <NewMissionDialog open={adding} onClose={() => setAdding(false)} defaultGiteId={id} />}
-    </form>
+      {id && <RecurrenceDialog open={!!series} recurrence={series === "new" ? null : series} defaultGiteId={id} onClose={() => setSeries(null)} />}
+    </>
   );
 }
