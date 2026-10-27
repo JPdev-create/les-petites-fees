@@ -27,11 +27,3 @@ jobs:
           TZ: Europe/Brussels
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: npx tsx scripts/import-chantiers.ts ${{ inputs.simulation && '--dry-run' || '' }}
-      # Les règles Firestore autorisent la nouvelle collection « recurrences » (page « Passages réguliers »).
-      - name: Publier les règles Firestore
-        if: ${{ !inputs.simulation }}
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: |
-          echo "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
-          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx firebase deploy --only firestore --non-interactive

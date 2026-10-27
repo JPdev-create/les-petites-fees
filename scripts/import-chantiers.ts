@@ -8,7 +8,7 @@
  */
 process.env.TZ ||= "Europe/Brussels";
 
-import { CHANTIERS, type Rule } from "./lib/chantiers";
+import { CHANTIERS, RENAMES, type Rule } from "./lib/chantiers";
 import { describeOccurrence, occurrences, recurrenceLabel } from "../src/lib/recurrence";
 import { COLORS, addDays, todayISO } from "../src/lib/format";
 import type { Gite, Recurrence } from "../src/lib/types";
@@ -40,11 +40,27 @@ async function main() {
   const recs = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Recurrence);
   let newPlaces = 0, newSeries = 0, planned = 0;
 
+  // Anciens noms → nouveaux : le lieu, sa série et ses passages sont conservés
+  for (const { from, to } of RENAMES) {
+    const g = gites.find((x) => norm(x.name) === norm(from));
+    if (!g || gites.some((x) => norm(x.name) === norm(to))) continue;
+    const city = CHANTIERS.find((c) => c.name === to)?.city;
+    await db.collection("gites").doc(g.id).update({ name: to, ...(city && !g.city ? { city } : {}), updatedAt: now });
+    const ms = await db.collection("missions").where("giteId", "==", g.id).get();
+    for (let i = 0; i < ms.docs.length; i += 400) {
+      const batch = db.batch();
+      ms.docs.slice(i, i + 400).forEach((d) => batch.update(d.ref, { giteName: to }));
+      await batch.commit();
+    }
+    g.name = to;
+    console.log(`↻ « ${from} » renommé en « ${to} » (${ms.size} passage(s))`);
+  }
+
   for (const [i, c] of CHANTIERS.entries()) {
     let g = gites.find((x) => norm(x.name) === norm(c.name));
     if (!g) {
       const data: Omit<Gite, "id"> = {
-        name: c.name, kind: c.kind ?? "BUREAU", ownerEmail: "", ownerName: "", address: "", postalCode: "", city: "",
+        name: c.name, kind: c.kind ?? "BUREAU", ownerEmail: "", ownerName: "", address: "", postalCode: "", city: c.city ?? "",
         accessInfo: "", notes: "", bedrooms: 0, bathrooms: 0, capacity: 0, bedSets: 0, towelSets: 0,
         price: 0, pricingMode: "FLAT", hourlyRate: 0, durationMin: 120, defaultTime: "", color: COLORS[i % COLORS.length],
         icalFeeds: [], active: true, createdAt: now, updatedAt: now,
