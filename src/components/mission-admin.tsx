@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Clock, Ban } from "lucide-react";
 import type { Gite, Mission, MissionStatus } from "@/lib/types";
 import { SOURCE, euros, formatDate, relativeDay, todayISO, periodOf, timeAgo, addDays, missionWhen } from "@/lib/format";
-import { deleteMission, moveMission, setMissionsStatus, updateMission, adminCreateMissions, completeMissions, confirmOnDate } from "@/lib/actions";
+import { deleteMission, moveMission, setMissionsStatus, adminCreateMissions, completeMissions, confirmOnDate, saveMissionNote } from "@/lib/actions";
+import { useLiveDoc } from "@/lib/hooks";
 import { durationLabel, hourlyAmount, isHourly, missionPriceLabel } from "@/lib/pricing";
 import { missionTitle, recurrenceLabel } from "@/lib/recurrence";
 import { useAdmin } from "./admin-data";
@@ -58,7 +59,10 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
   const [time, setTime] = useState("");
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
+  const [internal, setInternal] = useState("");
   const [busy, setBusy] = useState(false);
+  const saved = useLiveDoc<{ text: string }>(mission ? `missionNotes/${mission.id}` : null);
+  useEffect(() => setInternal(saved.data?.text ?? ""), [saved.data?.text]);
 
   useEffect(() => {
     if (!mission) return;
@@ -247,11 +251,13 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
           {sameDay.length > 0 && (
             <p className="muted text-xs">Ce jour-là : {sameDay.length} autre(s) passage(s) — {sameDay.map((x) => x.giteName).join(", ")}</p>
           )}
+          {m.adminNote && <p className="text-sm"><span className="muted">Message au client : </span>{m.adminNote}</p>}
+          {series?.note && <p className="text-sm"><span className="muted">Note de la série : </span>{series.note}</p>}
           <Field label="Note interne">
             <div className="flex gap-2">
-              <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Visible uniquement par les gestionnaires" />
-              {note !== (m.adminNote ?? "") && (
-                <button className="btn-secondary" onClick={() => updateMission(m.id, { adminNote: note }).then(() => toast("Note enregistrée"))}>OK</button>
+              <input className="input" value={internal} onChange={(e) => setInternal(e.target.value)} placeholder="Visible uniquement par les gestionnaires" />
+              {internal !== (saved.data?.text ?? "") && (
+                <button className="btn-secondary" onClick={() => saveMissionNote(m.id, internal, me.name).then(() => toast("Note enregistrée"), () => toast("Enregistrement impossible", "error"))}>OK</button>
               )}
             </div>
           </Field>

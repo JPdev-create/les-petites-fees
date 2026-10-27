@@ -24,6 +24,29 @@ service cloud.firestore {
     function isDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
     // Période souhaitée : absente, ou fin après le début
     function validRange(d) { return !('dateTo' in d) || d.dateTo == null || (isDate(d.dateTo) && d.dateTo > d.date); }
+    // Jour « AAAA-MM-JJ » pas encore passé
+    function notPast(v) { return timestamp.date(int(v[0:4]), int(v[5:7]), int(v[8:10])) >= request.time.date(); }
+    // Champ texte facultatif de taille raisonnable
+    function optText(d, k, max) { return !(k in d) || d[k] == null || (d[k] is string && d[k].size() <= max); }
+    function optBool(d, k) { return !(k in d) || d[k] is bool; }
+    function optTime(d) { return !('time' in d) || d.time == null || (d.time is string && d.time.matches('^[0-2][0-9]:[0-5][0-9]$')); }
+    function validProfileText(d) {
+      return d.name is string && d.name.size() > 1 && d.name.size() <= 100
+        && optText(d, 'company', 150) && optText(d, 'phone', 40) && optText(d, 'billingAddress', 500) && optText(d, 'vatNumber', 40)
+        && optBool(d, 'notifyEmail') && optBool(d, 'notifySms');
+    }
+    // Contenu d'un lieu modifiable par le client (tailles et types)
+    function validGiteText(d) {
+      return d.name is string && d.name.size() > 1 && d.name.size() <= 100
+        && optText(d, 'address', 300) && optText(d, 'postalCode', 20) && optText(d, 'city', 100)
+        && optText(d, 'accessInfo', 2000) && optText(d, 'notes', 2000) && optText(d, 'defaultTime', 5)
+        && (!('icalFeeds' in d) || (d.icalFeeds is list && d.icalFeeds.size() <= 5));
+    }
+    // Forfait par défaut des nouveaux lieux (6500 = 65 € si les paramètres ne l'indiquent pas)
+    function defaultPrice() {
+      let s = /databases/$(database)/documents/settings/main;
+      return exists(s) && 'defaultPrice' in get(s).data ? get(s).data.defaultPrice : 6500;
+    }
 
     // Inscription libre : une personne connectée (e-mail vérifié) peut créer SON profil client,
     // jamais un profil gestionnaire ni celui de quelqu'un d'autre.
@@ -31,7 +54,7 @@ service cloud.firestore {
       let d = request.resource.data;
       return signedIn() && id == email() && d.email == email()
         && d.role == 'OWNER' && d.active == true
-        && d.name is string && d.name.size() > 1
+        && validProfileText(d)
         && d.keys().hasOnly(['role', 'name', 'email', 'company', 'phone', 'billingAddress', 'vatNumber',
                              'notifyEmail', 'notifySms', 'active', 'createdAt', 'lastLoginAt', 'notifyAdmin']);
     }
@@ -41,7 +64,7 @@ service cloud.firestore {
       allow create: if isAdmin() || validSelfSignup(id);
       allow delete: if isAdmin();
       allow update: if isAdmin()
-        || (isOwner() && id == email()
+        || (isOwner() && id == email() && validProfileText(request.resource.data)
             && onlyChanges(['name', 'company', 'phone', 'billingAddress', 'vatNumber', 'notifyEmail', 'notifySms', 'lastLoginAt']));
     }
 
@@ -49,8 +72,8 @@ service cloud.firestore {
     function validOwnerGite() {
       let d = request.resource.data;
       return owns(d) && d.active == true && d.pendingReview == true
-        && d.price == get(/databases/$(database)/documents/settings/main).data.defaultPrice
-        && d.name is string && d.name.size() > 1
+        && d.price == defaultPrice()
+        && validGiteText(d)
         && d.keys().hasOnly(['name', 'kind', 'ownerEmail', 'ownerName', 'address', 'postalCode', 'city', 'accessInfo',
                              'notes', 'bedrooms', 'bathrooms', 'capacity', 'bedSets', 'towelSets', 'price', 'durationMin',
                              'defaultTime', 'color', 'icalFeeds', 'active', 'pendingReview', 'notifyAdmin',
@@ -62,31 +85,37 @@ service cloud.firestore {
       allow create: if isAdmin() || (isOwner() && validOwnerGite());
       allow delete: if isAdmin();
       allow update: if isAdmin()
-        || (isOwner() && owns(resource.data)
+        || (isOwner() && owns(resource.data) && validGiteText(request.resource.data)
             && onlyChanges(['name', 'kind', 'address', 'postalCode', 'city', 'accessInfo', 'notes', 'bedrooms',
                             'bathrooms', 'capacity', 'bedSets', 'towelSets', 'defaultTime', 'color', 'icalFeeds', 'updatedAt']));
     }
 
-    // Demande de passage créée par un client : statut « en attente », prix du gîte, son propre gîte.
+    // Demande de passage créée par un client : statut « en attente », prix et nom du gîte, son propre gîte actif,
+    // à une date qui n'est pas passée.
+    function validMissionText(d) {
+      return optText(d, 'ownerNote', 1000) && optTime(d) && optBool(d, 'urgent') && optBool(d, 'extraLinen');
+    }
     function validOwnerRequest() {
       let d = request.resource.data;
       let g = gite(d.giteId);
-      return owns(d) && g.ownerEmail == email()
+      return owns(d) && g.ownerEmail == email() && g.active == true
         && d.status == 'REQUESTED' && d.source == 'OWNER'
-        && d.price == g.price && isDate(d.date) && validRange(d)
+        && d.price == g.price && d.giteName == g.name && d.giteColor == g.color && d.ownerName == profile().name
+        && isDate(d.date) && notPast(d.date) && validRange(d) && validMissionText(d)
         && d.keys().hasOnly(['giteId', 'giteName', 'giteColor', 'ownerEmail', 'ownerName', 'date', 'time', 'status',
                              'source', 'urgent', 'extraLinen', 'ownerNote', 'price', 'notifyAdmin', 'dateTo',
                              'createdAt', 'updatedAt']);
     }
 
     // Un client peut annuler un passage à venir, ou modifier une demande encore en attente.
+    // Un passage déjà passé ne peut plus être annulé par le client.
     function validOwnerUpdate() {
       let before = resource.data;
       let after = request.resource.data;
-      return owns(before) && before.status in ['REQUESTED', 'CONFIRMED'] && (
-        (after.status == 'CANCELLED' && onlyChanges(['status', 'updatedAt', 'cancelledBy', 'notifyAdmin']))
-        || (before.status == 'REQUESTED' && after.status == 'REQUESTED' && isDate(after.date)
-            && validRange(after)
+      return owns(before) && before.status in ['REQUESTED', 'CONFIRMED'] && isDate(before.date) && notPast(before.date) && (
+        (after.status == 'CANCELLED' && after.cancelledBy == 'OWNER' && onlyChanges(['status', 'updatedAt', 'cancelledBy', 'notifyAdmin']))
+        || (before.status == 'REQUESTED' && after.status == 'REQUESTED' && isDate(after.date) && notPast(after.date)
+            && validRange(after) && validMissionText(after)
             && onlyChanges(['date', 'dateTo', 'time', 'ownerNote', 'urgent', 'extraLinen', 'updatedAt', 'notifyAdmin']))
       );
     }
@@ -104,6 +133,9 @@ service cloud.firestore {
       allow create, update: if isAdmin()
         || (isOwner() && owns(request.resource.data)
             && gite(request.resource.data.giteId).ownerEmail == email()
+            && request.resource.data.period is string && request.resource.data.period.matches('^[0-9]{4}-[0-9]{2}$')
+            && request.resource.data.empty is bool
+            && request.resource.data.keys().hasOnly(['giteId', 'ownerEmail', 'period', 'empty', 'submittedAt'])
             && id == request.resource.data.giteId + '_' + request.resource.data.period);
       allow delete: if isAdmin() || (isOwner() && owns(resource.data));
     }
@@ -116,6 +148,8 @@ service cloud.firestore {
 
     // Passages réguliers (les passages générés sont dans /missions, lisibles par le client concerné)
     match /recurrences/{id} { allow read, write: if isAdmin(); }
+    // Notes internes des passages : jamais visibles par les clients (le passage, lui, l'est)
+    match /missionNotes/{id} { allow read, write: if isAdmin(); }
     match /stock/{id} { allow read, write: if isAdmin(); }
     match /mail/{id} { allow read, write: if isAdmin(); }
     match /activity/{id} { allow read, write: if isAdmin(); }

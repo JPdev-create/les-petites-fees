@@ -11,8 +11,9 @@ const transport = user && pass
 
 export const APP_URL = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
 
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+export const esc = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
+/** Texte brut (échappé à l'affichage) : noms, notes et adresses saisis par les clients. */
 export type EmailItem = { title: string; meta?: string };
 export type EmailSection = { heading: string; tone?: "success" | "info" | "warning" | "danger" | "neutral"; items: EmailItem[] };
 
@@ -23,6 +24,7 @@ export type Email = {
   intro: string;
   lines?: string[];
   sections?: EmailSection[];
+  /** Texte brut, échappé à l'affichage. `lines` et `after` acceptent du HTML : y échapper toute saisie client. */
   /** Tableau récapitulatif (libellé → valeur) */
   summary?: [string, string][];
   cta?: { label: string; url: string };
@@ -57,8 +59,8 @@ export function render(e: Email, s: Settings = DEFAULT_SETTINGS) {
       const rows = sec.items
         .map(
           (it) => `<tr><td style="padding:12px 16px;border-top:1px solid #eef2f3">
-            <div style="font-family:${FONT};font-size:15px;line-height:21px;font-weight:600;color:#18181b">${it.title}</div>
-            ${it.meta ? `<div style="font-family:${FONT};font-size:13px;line-height:19px;color:#71717a;margin-top:2px">${it.meta}</div>` : ""}
+            <div style="font-family:${FONT};font-size:15px;line-height:21px;font-weight:600;color:#18181b">${esc(it.title)}</div>
+            ${it.meta ? `<div style="font-family:${FONT};font-size:13px;line-height:19px;color:#71717a;margin-top:2px">${esc(it.meta)}</div>` : ""}
           </td></tr>`,
         )
         .join("");
@@ -74,7 +76,7 @@ export function render(e: Email, s: Settings = DEFAULT_SETTINGS) {
         ${e.summary
           .map(
             ([k, v], i) => `<tr><td style="padding:${i ? "8px" : "16px"} 18px ${i === e.summary!.length - 1 ? "16px" : "8px"};font-family:${FONT};font-size:14px;color:#71717a">${esc(k)}</td>
-              <td align="right" style="padding:${i ? "8px" : "16px"} 18px ${i === e.summary!.length - 1 ? "16px" : "8px"};font-family:${FONT};font-size:14px;font-weight:600;color:#18181b">${v}</td></tr>`,
+              <td align="right" style="padding:${i ? "8px" : "16px"} 18px ${i === e.summary!.length - 1 ? "16px" : "8px"};font-family:${FONT};font-size:14px;font-weight:600;color:#18181b">${esc(v)}</td></tr>`,
           )
           .join("")}
       </table>`
@@ -83,9 +85,9 @@ export function render(e: Email, s: Settings = DEFAULT_SETTINGS) {
   const cta = e.cta
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 8px"><tr>
         <td style="border-radius:12px;background:#2f6873" bgcolor="#2f6873">
-          <a href="${e.cta.url}" style="display:inline-block;padding:15px 28px;font-family:${FONT};font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:12px">${esc(e.cta.label)} &rarr;</a>
+          <a href="${esc(e.cta.url)}" style="display:inline-block;padding:15px 28px;font-family:${FONT};font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:12px">${esc(e.cta.label)} &rarr;</a>
         </td></tr></table>
-      <p style="margin:0 0 6px;font-family:${FONT};font-size:12px;line-height:18px;color:#a1a1aa">Le bouton ne fonctionne pas ? Copiez ce lien dans votre navigateur :<br><a href="${e.cta.url}" style="color:#2f6873;word-break:break-all">${esc(e.cta.url)}</a></p>`
+      <p style="margin:0 0 6px;font-family:${FONT};font-size:12px;line-height:18px;color:#a1a1aa">Le bouton ne fonctionne pas ? Copiez ce lien dans votre navigateur :<br><a href="${esc(e.cta.url)}" style="color:#2f6873;word-break:break-all">${esc(e.cta.url)}</a></p>`
     : "";
 
   const legal = [s.legalForm, s.bceNumber ? `BCE ${s.bceNumber}` : "", s.vatNumber ? `TVA ${s.vatNumber}` : ""].filter(Boolean).join(" · ");
@@ -119,9 +121,9 @@ export function render(e: Email, s: Settings = DEFAULT_SETTINGS) {
     </td></tr>
     <tr><td class="inner" bgcolor="#ffffff" style="background:#ffffff;padding:34px 36px 30px">
       <h1 class="h1" style="margin:0 0 18px;font-family:${FONT};font-size:24px;line-height:31px;font-weight:700;color:#18181b">${esc(e.title)}</h1>
-      ${p(e.intro)}${(e.lines ?? []).map(p).join("")}${summary}${sections}${cta}${e.after?.length ? `<div style="padding-top:14px">${e.after.map(p).join("")}</div>` : ""}
+      ${p(esc(e.intro))}${(e.lines ?? []).map(p).join("")}${summary}${sections}${cta}${e.after?.length ? `<div style="padding-top:14px">${e.after.map(p).join("")}</div>` : ""}
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:26px;border-top:1px solid #eef2f3"><tr><td style="padding-top:20px;font-family:${FONT};font-size:14px;line-height:21px;color:#3f3f46">
-        ${e.audience === "admin" ? "— Votre assistant de planning ✨" : `Bien à vous,<br><strong style="color:#18181b">L'équipe ${esc(deName(s.companyName))}</strong><br><span style="color:#71717a">${esc(s.companyPhone)} · <a href="mailto:${s.companyEmail}" style="color:#2f6873">${esc(s.companyEmail)}</a></span>`}
+        ${e.audience === "admin" ? "— Votre assistant de planning ✨" : `Bien à vous,<br><strong style="color:#18181b">L'équipe ${esc(deName(s.companyName))}</strong><br><span style="color:#71717a">${esc(s.companyPhone)} · <a href="mailto:${esc(s.companyEmail)}" style="color:#2f6873">${esc(s.companyEmail)}</a></span>`}
       </td></tr></table>
     </td></tr>
     <tr><td bgcolor="#f7fafb" style="background:#f7fafb;border-radius:0 0 20px 20px;border-top:1px solid #e8eff1;padding:20px 28px;text-align:center;font-family:${FONT};font-size:12px;line-height:19px;color:#8a9499">
@@ -133,12 +135,13 @@ export function render(e: Email, s: Settings = DEFAULT_SETTINGS) {
 </td></tr></table>
 </body></html>`;
 
-  const strip = (t: string) => t.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ");
+  const strip = (t: string) => t.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
   const text = [
-    strip(e.intro),
+    e.intro,
     ...(e.lines ?? []).map(strip),
-    ...(e.summary ?? []).map(([k, v]) => `${k} : ${strip(v)}`),
-    ...(e.sections ?? []).filter((x) => x.items.length).map((sec) => `${sec.heading}\n${sec.items.map((i) => `  • ${strip(i.title)}${i.meta ? ` — ${strip(i.meta)}` : ""}`).join("\n")}`),
+    ...(e.summary ?? []).map(([k, v]) => `${k} : ${v}`),
+    ...(e.sections ?? []).filter((x) => x.items.length).map((sec) => `${sec.heading}\n${sec.items.map((i) => `  • ${i.title}${i.meta ? ` — ${i.meta}` : ""}`).join("\n")}`),
     e.cta ? `${e.cta.label} : ${e.cta.url}` : "",
     ...(e.after ?? []).map(strip),
     e.audience === "admin" ? "" : `Bien à vous,\nL'équipe ${deName(s.companyName)}\n${s.companyPhone} · ${s.companyEmail}`,

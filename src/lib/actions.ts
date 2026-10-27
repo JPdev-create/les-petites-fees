@@ -124,20 +124,32 @@ export async function updateMission(id: string, patch: Partial<Mission>) {
 }
 
 export async function deleteMission(id: string) {
-  await deleteDoc(doc(db(), "missions", id));
+  const batch = writeBatch(db());
+  batch.delete(doc(db(), "missions", id));
+  batch.delete(doc(db(), "missionNotes", id));
+  await batch.commit();
+}
+
+/** Note interne d'un passage : stockée à part, car le client peut lire ses passages. */
+export async function saveMissionNote(id: string, text: string, by: string) {
+  const ref = doc(db(), "missionNotes", id);
+  if (text.trim()) await setDoc(ref, { text: text.trim(), by, updatedAt: now() });
+  else await deleteDoc(ref);
 }
 
 export async function adminCreateMissions(gite: Gite, dates: string[], opts: { time?: string | null; status: MissionStatus; note?: string; notify: boolean }, by: string) {
   const batch = writeBatch(db());
   const t = now();
   for (const date of dates) {
-    batch.set(doc(collection(db(), "missions")), {
+    const ref = doc(collection(db(), "missions"));
+    batch.set(ref, {
       giteId: gite.id, giteName: gite.name, giteColor: gite.color, ownerEmail: gite.ownerEmail, ownerName: gite.ownerName,
       date, time: opts.time || gite.defaultTime || null, status: opts.status, source: "ADMIN",
-      urgent: false, extraLinen: false, ownerNote: null, adminNote: opts.note?.trim() || null,
+      urgent: false, extraLinen: false, ownerNote: null, adminNote: null,
       price: gite.price, notifyAdmin: false, notifyOwner: opts.notify && opts.status === "CONFIRMED" ? "CONFIRMED" : null,
       createdAt: t, updatedAt: t, doneAt: opts.status === "DONE" ? t : null,
     });
+    if (opts.note?.trim()) batch.set(doc(db(), "missionNotes", ref.id), { text: opts.note.trim(), by, updatedAt: t });
   }
   await batch.commit();
   await log(by, `${dates.length} passage(s) ajouté(s) pour ${gite.name}`);

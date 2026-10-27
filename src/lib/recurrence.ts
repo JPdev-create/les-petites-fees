@@ -89,7 +89,7 @@ export function occurrenceMission(r: Recurrence, g: Gite, o: Occurrence, t: stri
   return {
     giteId: g.id, giteName: g.name, giteColor: g.color, ownerEmail: g.ownerEmail, ownerName: g.ownerName,
     date: o.date, dateTo: null, time: r.time || g.defaultTime || null, status: "CONFIRMED", source: "ADMIN",
-    urgent: false, extraLinen: false, ownerNote: null, adminNote: r.note?.trim() || null,
+    urgent: false, extraLinen: false, ownerNote: null, adminNote: null, // la note de la série reste privée (recurrences/)
     price: g.price, notifyAdmin: false, notifyOwner: null,
     recurrenceId: r.id, occurrenceDate: o.date, variant: o.variant,
     createdAt: t, updatedAt: t, doneAt: null,

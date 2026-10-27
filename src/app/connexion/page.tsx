@@ -7,7 +7,7 @@ import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from "firebas
 import { ArrowLeft, CheckCircle2, Mail, MailCheck } from "lucide-react";
 import { fb, BASE_PATH } from "@/lib/firebase";
 import { sendLoginLink } from "@/lib/actions";
-import { AuthProvider, useAuth } from "@/components/auth";
+import { AuthProvider, Disabled, useAuth } from "@/components/auth";
 import { Onboarding } from "@/components/onboarding";
 import { ErrorNote, Logo, Spinner, Splash, ThemeToggle } from "@/components/ui";
 
@@ -24,7 +24,7 @@ function firebaseError(e: unknown) {
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, disabled } = useAuth();
   const [showEmail, setShowEmail] = useState(false);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -89,6 +89,8 @@ function LoginInner() {
 
   // Connecté : redirection en cours vers son espace
   if (!loading && user && profile) return <Splash />;
+
+  if (!loading && user && disabled) return <Disabled />;
 
   // Première connexion : création de l'espace client
   if (!loading && user && !profile) {

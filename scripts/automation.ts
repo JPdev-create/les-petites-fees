@@ -15,7 +15,7 @@ import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { initAdmin } from "./lib/admin";
 import { APP_URL, send, sendSms } from "./lib/mailer";
 import { adminRequestsEmail, adminSignupEmail, inviteEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
-import { isReservation, parseIcs } from "./lib/ical";
+import { MAX_ICS_BYTES, isReservation, parseIcs, safeFeedUrl } from "./lib/ical";
 import { extendAll } from "./lib/recurrences";
 import { DEFAULT_SETTINGS, type Gite, type Mission, type Profile, type Settings } from "../src/lib/types";
 import { addDays, currentPeriod, formatDate, periodBounds, periodLabel, shiftPeriod, todayISO } from "../src/lib/format";
@@ -126,9 +126,14 @@ async function syncGite(g: Gite, s: Settings) {
 
   for (const feed of g.icalFeeds ?? []) {
     try {
-      const res = await fetch(feed.url, { headers: { "User-Agent": "LesPetitesFees/1.0" }, signal: AbortSignal.timeout(20000) });
+      const url = safeFeedUrl(feed.url);
+      if (!url) throw new Error("lien refusé (adresse https:// d'Airbnb, Booking… attendue)");
+      const res = await fetch(url, { headers: { "User-Agent": "LesPetitesFees/1.0" }, redirect: "follow", signal: AbortSignal.timeout(20000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (res.url && !safeFeedUrl(res.url)) throw new Error("redirection vers une adresse refusée");
+      if (Number(res.headers.get("content-length") || 0) > MAX_ICS_BYTES) throw new Error("calendrier trop volumineux");
       const text = await res.text();
+      if (text.length > MAX_ICS_BYTES) throw new Error("calendrier trop volumineux");
       if (!text.includes("BEGIN:VCALENDAR")) throw new Error("ce lien n'est pas un calendrier iCal");
       for (const ev of parseIcs(text).filter(isReservation)) {
         const date = ev.end; // jour du départ = jour du nettoyage

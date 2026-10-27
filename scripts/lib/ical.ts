@@ -42,3 +42,23 @@ export function parseIcs(text: string): VEvent[] {
 export function isReservation(e: VEvent) {
   return !/airbnb\s*\(not available\)/i.test(e.summary);
 }
+
+/**
+ * Lien de calendrier acceptable : https (ou webcal, converti), vers un nom de domaine public.
+ * Les liens sont saisis par les clients : on refuse les adresses IP et les noms locaux.
+ */
+export function safeFeedUrl(raw: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(raw.trim().replace(/^webcals?:\/\//i, "https://"));
+  } catch {
+    return null;
+  }
+  const host = u.hostname.toLowerCase();
+  if (u.protocol !== "https:" || u.username || u.password || (u.port && u.port !== "443")) return null;
+  if (!host.includes(".") || host.startsWith("[") || /^[\d.]+$/.test(host) || /(^|\.)(localhost|local|internal|lan|home|arpa)$/.test(host)) return null;
+  return u.toString();
+}
+
+/** Taille maximale d'un calendrier téléchargé */
+export const MAX_ICS_BYTES = 5_000_000;

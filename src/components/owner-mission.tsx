@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Clock, StickyNote, Zap, Shirt, Phone, XCircle, Save } from "lucide-react";
+import { missionTitle } from "@/lib/recurrence";
 import type { Mission } from "@/lib/types";
 import { capitalize, diffDays, formatDate, todayISO, missionWhen } from "@/lib/format";
 import { ownerCancel, ownerUpdateRequest } from "@/lib/actions";
@@ -52,7 +53,7 @@ export function OwnerMissionSheet({ mission, onClose }: { mission: Mission | nul
     <Modal
       open
       onClose={onClose}
-      title={m.giteName}
+      title={missionTitle(m)}
       footer={
         editable && dirty ? (
           <button className="btn-primary w-full sm:w-auto" disabled={busy} onClick={() => run(() => ownerUpdateRequest(m, { time: time || null, ownerNote: note.trim() || null, urgent, extraLinen: linen }), "Demande mise à jour")}>
@@ -96,7 +97,7 @@ export function OwnerMissionSheet({ mission, onClose }: { mission: Mission | nul
             <button
               className="inline-flex items-center gap-1.5 text-sm font-medium text-rose-600 hover:underline"
               disabled={busy}
-              onClick={async () => (await askConfirm({ title: "Annuler ce passage ?", message: `${m.giteName} — ${formatDate(m.date)}. Nous serons prévenus de l'annulation.`, confirmLabel: "Oui, annuler", cancelLabel: "Garder", danger: true })) && run(() => ownerCancel(m), "Passage annulé")}
+              onClick={async () => (await askConfirm({ title: "Annuler ce passage ?", message: `${missionTitle(m)} — ${formatDate(m.date)}. Nous serons prévenus de l'annulation.`, confirmLabel: "Oui, annuler", cancelLabel: "Garder", danger: true })) && run(() => ownerCancel(m), "Passage annulé")}
             >
               <XCircle className="size-4" /> Annuler ce passage
             </button>
