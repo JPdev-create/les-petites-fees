@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       sync:
-        description: "Forcer la synchronisation iCal et l'envoi à la pointeuse"
+        description: "(Lancé à la main, tout est toujours fait tout de suite)"
         type: boolean
-        default: false
+        default: true
 
 concurrency:
   group: automation
@@ -38,4 +38,5 @@ jobs:
           TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_SMS_FROM: ${{ secrets.TWILIO_SMS_FROM }}
-        run: npx tsx scripts/automation.ts ${{ inputs.sync && '--sync' || '' }}
+        # Lancement à la main (« Run workflow ») : tout est fait tout de suite, y compris l'envoi à la pointeuse
+        run: npx tsx scripts/automation.ts ${{ github.event_name == 'workflow_dispatch' && '--sync' || '' }}

@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       simulation:
-        description: "Simulation (afficher sans rien écrire dans la pointeuse)"
+        description: "Simulation seulement (cocher pour afficher sans rien écrire dans la pointeuse)"
         type: boolean
-        default: true
+        default: false
 
 jobs:
   run:
