@@ -310,7 +310,10 @@ async function validateFromPointages(
     lpf.collection("missions").where("date", ">=", since).where("date", "<=", today).get(),
     pt.collection("pointages").where("timestamp", ">=", new Date(`${since}T00:00:00`).toISOString()).get(),
   ]);
-  const pointages = pSnap.docs.map((d) => d.data()).map((p) => ({
+  // Pointages manuels compris ; la « Saisie rapide » (Régularisation) est ignorée : sa date est fictive (début de période)
+  const pointages = pSnap.docs.map((d) => d.data())
+    .filter((p) => p.userName !== "Régularisation" && !String(p.notes ?? "").startsWith("(Saisie Rapide"))
+    .map((p) => ({
     chantierId: String(p.chantierId ?? ""), chantier: norm(String(p.chantier ?? "")),
     date: toISODate(new Date(p.timestamp)), start: new Date(p.timestamp).getTime(),
     end: p.endTime ? new Date(p.endTime).getTime() : null, pauseMs: Number(p.pauseDurationMs) || 0,
