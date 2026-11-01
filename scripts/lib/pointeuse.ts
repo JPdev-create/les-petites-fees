@@ -18,7 +18,47 @@ export function initPointeuse(): Firestore | null {
   const raw = process.env.POINTEUSE_SERVICE_ACCOUNT;
   if (process.env.POINTEUSE_EMULATOR) return getFirestore(initializeApp({ projectId: "demo-pointeuse" }, "pointeuse"));
   if (!raw) return null;
-  return getFirestore(initializeApp({ credential: cert(JSON.parse(raw)) }, "pointeuse"));
+  return getFirestore(initializeApp({ credential: cert(parseServiceAccount(raw)) }, "pointeuse"));
+}
+
+/**
+ * Lit la clé JSON d'un compte de service en tolérant les dégâts d'un copier-coller
+ * (depuis un téléphone notamment) : retours à la ligne réels dans la clé privée, « \n » doublés,
+ * guillemets typographiques, espaces insécables.
+ */
+export function parseServiceAccount(raw: string): Record<string, string> {
+  const text = raw.trim().replace(/^\uFEFF/, "").replace(/[\u201C\u201D]/g, '"').replace(/\u00A0/g, " ");
+  let data: Record<string, string>;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    // Retours à la ligne et tabulations réels à l'intérieur des chaînes → échappés
+    let fixed = "", inString = false, escaped = false;
+    for (const ch of text) {
+      if (inString) {
+        if (escaped) { escaped = false; fixed += ch; continue; }
+        if (ch === "\\") { escaped = true; fixed += ch; continue; }
+        if (ch === '"') { inString = false; fixed += ch; continue; }
+        if (ch === "\n") { fixed += "\\n"; continue; }
+        if (ch === "\r") continue;
+        if (ch === "\t") { fixed += "\\t"; continue; }
+        fixed += ch;
+      } else {
+        if (ch === '"') inString = true;
+        fixed += ch;
+      }
+    }
+    try {
+      data = JSON.parse(fixed);
+    } catch (e) {
+      throw new Error(`POINTEUSE_SERVICE_ACCOUNT illisible : recollez tout le contenu du fichier .json, de { à } (${e instanceof Error ? e.message : e})`);
+    }
+  }
+  if (typeof data.private_key === "string") data.private_key = data.private_key.replace(/\\n/g, "\n");
+  if (data.type !== "service_account" || !data.private_key || !data.client_email) {
+    throw new Error("POINTEUSE_SERVICE_ACCOUNT : ce n'est pas une clé de compte de service Firebase complète (type, private_key, client_email).");
+  }
+  return data;
 }
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
