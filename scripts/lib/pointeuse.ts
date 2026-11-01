@@ -58,7 +58,12 @@ export function describeKeyShape(key: string): string {
  * guillemets typographiques, espaces insécables.
  */
 export function parseServiceAccount(raw: string): Record<string, string> {
-  const text = raw.trim().replace(/^\uFEFF/, "").replace(/[\u201C\u201D]/g, '"').replace(/\u00A0/g, " ");
+  let text = raw.trim().replace(/^\uFEFF/, "").replace(/[\u201C\u201D]/g, '"').replace(/\u00A0/g, " ");
+  // Format « anti-téléphone » : le fichier .json entier encodé en base64, sur une seule ligne
+  if (!text.startsWith("{")) {
+    const decoded = Buffer.from(text.replace(/\s/g, ""), "base64").toString("utf8").trim();
+    if (decoded.startsWith("{")) text = decoded;
+  }
   let data: Record<string, string>;
   try {
     data = JSON.parse(text);

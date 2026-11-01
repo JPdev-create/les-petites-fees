@@ -247,11 +247,13 @@ async function monthlyReminders(s: Settings, people: Map<string, Profile>) {
 
 /* ---------------- 8. Pointeuse LPF ---------------- */
 async function pointeuse(force: boolean) {
-  const pt = initPointeuse();
-  if (!pt) return null;
-  const last = (await db.doc("settings/main").get()).data()?.lastPointeuseRun as string | undefined;
-  if (!force && last && Date.now() - new Date(last).getTime() < 55 * 60_000) return null;
+  if (!process.env.POINTEUSE_SERVICE_ACCOUNT && !process.env.POINTEUSE_EMULATOR) return null;
+  // Tout est dans le try : une clé de la pointeuse abîmée ne doit jamais bloquer les e-mails ni l'iCal
   try {
+    const last = (await db.doc("settings/main").get()).data()?.lastPointeuseRun as string | undefined;
+    if (!force && last && Date.now() - new Date(last).getTime() < 55 * 60_000) return null;
+    const pt = initPointeuse();
+    if (!pt) return null;
     const r = await syncPointeuse(db, pt);
     await db.doc("settings/main").set({ lastPointeuseRun: now(), pointeuseError: null }, { merge: true });
     if (r.created || r.updated || r.deleted || r.newChantiers.length) {
