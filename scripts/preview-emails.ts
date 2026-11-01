@@ -7,7 +7,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { render } from "./lib/mailer";
-import { adminRequestsEmail, adminSignupEmail, inviteEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
+import { adminRequestsEmail, adminSignupEmail, doneSummaryEmail, inviteEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
 import { DEFAULT_SETTINGS, type Gite, type Mission, type Profile, type Settings } from "../src/lib/types";
 
 const out = process.argv[2] || "email-previews";
@@ -34,6 +34,7 @@ const add = (file: string, subject: string, e: Parameters<typeof render>[0]) => 
 { const [subj, e] = ownerUpdateEmail(marie, [mission("moulin", "2026-11-08", { notifyOwner: "MOVED", adminNote: "complet le 7, décalé au lendemain" })], gites, s); add("3-changement-de-date", subj, e); }
 { const [subj, e] = ownerUpdateEmail(marie, [mission("verger", "2026-11-21", { notifyOwner: "REFUSED", refuseReason: "Nous sommes complets ce jour-là, le 22 vous conviendrait-il ?" })], gites, s); add("4-refus", subj, e); }
 { const [subj, e] = reminderEmail(marie, "2026-11", ["Gîte du Moulin", "Le Petit Verger"], s); add("5-relance-fin-de-mois", subj, e); }
+{ const [subj, e] = doneSummaryEmail(marie, [mission("moulin", "2026-11-01", { status: "DONE" }), mission("verger", "2026-11-01", { status: "DONE" })], gites); add("6-nettoyages-effectues", subj, e); }
 { const [subj, e] = adminRequestsEmail(admin, [mission("moulin", "2026-10-30", { status: "REQUESTED", urgent: true, ownerNote: "6 voyageurs + lit bébé" }), mission("verger", "2026-11-05", { status: "REQUESTED", extraLinen: true })], [], gites, new Map([[marie.id, marie]])); add("7-gestionnaire-nouvelles-demandes", subj, e); }
 { const [subj, e] = adminSignupEmail(admin, [{ ...marie, name: "Paul Martin", email: "paul@example.be", billingAddress: "Rue des Lilas 9\n6900 Marche" }], [{ ...gites.get("moulin")!, name: "Gîte des Ardennes", ownerName: "Paul Martin" }]); add("8-gestionnaire-nouveau-lieu", subj, e); }
 

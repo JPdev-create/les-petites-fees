@@ -73,7 +73,7 @@ export async function setMissionsStatus(ids: string[], status: MissionStatus, by
     batch.update(doc(db(), "missions", id), {
       status, updatedAt: t, notifyAdmin: false,
       ...(notify ? { notifyOwner: notify } : {}),
-      ...(status === "DONE" ? { doneAt: t } : {}),
+      ...(status === "DONE" ? { doneAt: t, notifyDone: true } : { notifyDone: false }),
       ...extra,
     });
   }
@@ -88,7 +88,7 @@ export async function completeMissions(list: { m: Mission; workedMin?: number }[
   const t = now();
   for (const { m, workedMin } of list) {
     batch.update(doc(db(), "missions", m.id), {
-      status: "DONE", doneAt: m.doneAt ?? t, updatedAt: t, notifyAdmin: false,
+      status: "DONE", doneAt: m.doneAt ?? t, updatedAt: t, notifyAdmin: false, notifyDone: m.status !== "DONE",
       ...(workedMin ? { workedMin } : {}),
     });
   }

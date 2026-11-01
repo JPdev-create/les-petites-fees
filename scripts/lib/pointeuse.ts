@@ -338,7 +338,7 @@ async function validateFromPointages(
     if (!sameDay.length || sameDay.some((p) => p.end === null)) continue; // personne n'a pointé, ou pointage encore en cours
     const workedMin = Math.round(sameDay.reduce((s, p) => s + Math.max(0, p.end! - p.start - p.pauseMs), 0) / 60000);
     const doneAt = new Date(Math.max(...sameDay.map((p) => p.end!))).toISOString();
-    batch.update(d.ref, { status: "DONE", doneAt, doneBy: "Pointeuse", workedMin, updatedAt: t, notifyAdmin: false });
+    batch.update(d.ref, { status: "DONE", doneAt, doneBy: "Pointeuse", workedMin, updatedAt: t, notifyAdmin: false, notifyDone: true });
     done.push(`✓ ${m.date} ${missionTitle(m)} (${Math.floor(workedMin / 60)} h ${String(workedMin % 60).padStart(2, "0")} pointées)`);
   }
   if (!dryRun && done.length) {
