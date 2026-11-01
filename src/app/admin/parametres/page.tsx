@@ -70,14 +70,14 @@ export default function SettingsPage() {
             {healthy ? <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> : <AlertCircle className="mt-0.5 size-4 shrink-0" />}
             <p>
               {lastRun ? <>Dernière exécution {timeAgo(lastRun)}.</> : <>Les automatisations n&apos;ont pas encore tourné.</>}{" "}
-              Elles s&apos;exécutent toutes les 30 minutes : envoi des e-mails, synchronisation Airbnb/Booking et relances.
+              Elles s&apos;exécutent toutes les 3 heures : envoi des e-mails, synchronisation Airbnb/Booking et relances.
             </p>
           </div>
           <button className="btn-secondary h-auto min-h-10 whitespace-normal py-2 text-left" onClick={() => saveSettings({ syncRequestedAt: new Date().toISOString() }).then(() => toast("Synchronisation demandée"))}>
             <RefreshCw className="size-4" /> Synchroniser les calendriers au prochain passage
           </button>
           <p className="muted text-sm">
-            <strong className="text-zinc-800 dark:text-zinc-200">Pointeuse LPF</strong> : les passages confirmés des 6 prochaines semaines y sont envoyés toutes les heures.{" "}
+            <strong className="text-zinc-800 dark:text-zinc-200">Pointeuse LPF</strong> : les passages confirmés des 6 prochaines semaines y sont envoyés une fois par jour, vers 19 h (les passages pointés sont alors marqués effectués).{" "}
             {settings.pointeuseError
               ? <span className="text-rose-600">Dernier envoi en erreur : {settings.pointeuseError}</span>
               : settings.lastPointeuseRun ? <>Dernier envoi {timeAgo(settings.lastPointeuseRun)}.</> : <>Pas encore configurée.</>}

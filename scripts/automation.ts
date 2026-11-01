@@ -20,7 +20,10 @@ import { MAX_ICS_BYTES, isReservation, parseIcs, safeFeedUrl } from "./lib/ical"
 import { extendAll } from "./lib/recurrences";
 import { initPointeuse, syncPointeuse } from "./lib/pointeuse";
 import { DEFAULT_SETTINGS, type Gite, type Mission, type Profile, type Settings } from "../src/lib/types";
-import { addDays, currentPeriod, formatDate, periodBounds, periodLabel, shiftPeriod, todayISO } from "../src/lib/format";
+import { addDays, currentPeriod, formatDate, periodBounds, periodLabel, shiftPeriod, toISODate, todayISO } from "../src/lib/format";
+
+/** Heure (Bruxelles) à partir de laquelle l'envoi quotidien vers la Pointeuse LPF est fait */
+const POINTEUSE_HOUR = 19;
 
 const { db } = initAdmin();
 const now = () => new Date().toISOString();
@@ -251,7 +254,9 @@ async function pointeuse(force: boolean) {
   // Tout est dans le try : une clé de la pointeuse abîmée ne doit jamais bloquer les e-mails ni l'iCal
   try {
     const last = (await db.doc("settings/main").get()).data()?.lastPointeuseRun as string | undefined;
-    if (!force && last && Date.now() - new Date(last).getTime() < 55 * 60_000) return null;
+    // Une fois par jour, au premier passage après 19 h (les pointages de la journée sont finis), sauf envoi forcé
+    const doneToday = !!last && toISODate(new Date(last)) === todayISO();
+    if (!force && (doneToday || new Date().getHours() < POINTEUSE_HOUR)) return null;
     const pt = initPointeuse();
     if (!pt) return null;
     const r = await syncPointeuse(db, pt);

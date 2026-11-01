@@ -1,4 +1,4 @@
-# Envoi immédiat du planning vers la Pointeuse LPF (l'automatisation le fait déjà toutes les heures).
+# Envoi immédiat du planning vers la Pointeuse LPF (l'automatisation le fait une fois par jour, vers 19 h).
 name: Envoyer le planning à la pointeuse
 
 on:
