@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Repeat, Save, Trash2 } from "lucide-react";
 import type { Recurrence } from "@/lib/types";
 import { DAYS_LONG, DAYS_SHORT, addDays, parseISODate, todayISO, weekdayIndex } from "@/lib/format";
-import { describeOccurrence, occurrences, recurrenceLabel } from "@/lib/recurrence";
+import { alignStart, describeOccurrence, occurrences, recurrenceLabel } from "@/lib/recurrence";
 import { deleteRecurrence, saveRecurrence, type RecurrenceInput } from "@/lib/actions";
 import { useAdmin } from "./admin-data";
 import { Field, Modal, Segmented, Spinner, Toggle } from "./ui";
@@ -45,7 +45,9 @@ export function RecurrenceDialog({ open, onClose, recurrence, defaultGiteId }: {
   const toggleDay = (d: number) => set("days", f.days.includes(d) ? f.days.filter((x) => x !== d) : [...f.days, d].sort());
   const setStart = (date: string) => setF((x) => ({ ...x, startDate: date, days: x.freq === "WEEKLY" && !x.days.length && date ? [weekdayIndex(parseISODate(date))] : x.days }));
 
-  const rule = { ...f, variants: variants.split(",").map((v) => v.trim()).filter(Boolean) };
+  // Série existante dont la date de départ n'a pas changé : on la garde telle quelle (les passages déjà créés en dépendent)
+  const start = !recurrence || f.startDate !== recurrence.startDate ? alignStart(f) : f;
+  const rule = { ...start, variants: variants.split(",").map((v) => v.trim()).filter(Boolean) };
   const valid = !!f.giteId && !!f.startDate && (f.freq === "MONTHLY" || f.days.length > 0);
   const today = todayISO();
   const preview = valid ? occurrences(rule, today, addDays(today, 400)).slice(0, 8) : [];
