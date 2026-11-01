@@ -114,7 +114,7 @@ export type PointeuseReport = { created: number; updated: number; deleted: numbe
  * - Les champs venant des Petites Fées ne sont réécrits que s'ils ont changé de ce côté-là :
  *   une heure retouchée dans la pointeuse n'est pas écrasée à chaque passage.
  * - Passage déplacé ou annulé : la ligne suit, et l'équipe assignée reçoit la notification habituelle.
- * - Lieu sans chantier correspondant (même nom) dans la pointeuse : le chantier y est créé.
+ * - Lieu sans chantier correspondant (même nom, ou nom listé dans « lpfAliases » du chantier) : le chantier y est créé.
  */
 export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = false): Promise<PointeuseReport> {
   const today = todayISO();
@@ -130,7 +130,11 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
     pt.collection("users").get(),
   ]);
   const gites = new Map(gSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() } as Gite & { pointeuseChantierId?: string }]));
-  const chantiers = cSnap.docs.map((d) => ({ id: d.id, name: String(d.data().name ?? ""), status: d.data().status as string }));
+  // lpfAliases : autres noms du chantier côté Petites Fées (ex. « EVERCAR » dans la pointeuse = « Evercare » chez LPF)
+  const chantiers = cSnap.docs.map((d) => ({
+    id: d.id, name: String(d.data().name ?? ""), status: d.data().status as string,
+    aliases: (Array.isArray(d.data().lpfAliases) ? d.data().lpfAliases : []).map(String) as string[],
+  }));
   const userIdByName = new Map(uSnap.docs.map((d) => [String(d.data().displayName ?? ""), d.id]));
 
   // Lieu des Petites Fées → chantier de la pointeuse (lien mémorisé sur le lieu, sinon même nom)
@@ -138,17 +142,18 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
   const resolve = async (g: Gite & { pointeuseChantierId?: string }) => {
     if (chantierFor.has(g.id)) return chantierFor.get(g.id)!;
     let c = chantiers.find((x) => x.id === g.pointeuseChantierId)
-      ?? chantiers.filter((x) => norm(x.name) === norm(g.name)).sort((a, b) => Number(b.status === "active") - Number(a.status === "active"))[0];
+      ?? chantiers.filter((x) => norm(x.name) === norm(g.name) || x.aliases.some((a) => norm(a) === norm(g.name)))
+        .sort((a, b) => Number(b.status === "active") - Number(a.status === "active"))[0];
     if (!c) {
       report.newChantiers.push(g.name);
-      if (dryRun) c = { id: `(nouveau) ${g.name}`, name: g.name, status: "active" };
+      if (dryRun) c = { id: `(nouveau) ${g.name}`, name: g.name, status: "active", aliases: [] };
       else {
         const ref = await pt.collection("chantiers").add({
           name: g.name, address: address(g), email: "", totalHeuresPrevues: 0, fixedAppointment: "", timeWindowStart: "", timeWindowEnd: "",
           isHideable: false, keyboxCodes: [], additionalInfo: g.accessInfo ?? "", coordinates: null,
           status: "active", source: "lpf", createdAt: FieldValue.serverTimestamp(),
         });
-        c = { id: ref.id, name: g.name, status: "active" };
+        c = { id: ref.id, name: g.name, status: "active", aliases: [] };
         chantiers.push(c);
       }
     }
