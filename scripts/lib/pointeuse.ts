@@ -189,12 +189,16 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
   // Lieu des Petites Fées → chantier de la pointeuse (lien mémorisé sur le lieu, sinon même nom).
   // La fiche du chantier reprend les données du lieu (adresse, propriétaire, durée, accès…).
   const chantierFor = new Map<string, { id: string; name: string }>();
-  const resolve = async (g: Gite & { pointeuseChantierId?: string }) => {
+  // create = false : seulement compléter une fiche existante (jamais de nouveau chantier pour un lieu sans passage)
+  async function resolve(g: Gite & { pointeuseChantierId?: string }): Promise<{ id: string; name: string }>;
+  async function resolve(g: Gite & { pointeuseChantierId?: string }, create: false): Promise<{ id: string; name: string } | null>;
+  async function resolve(g: Gite & { pointeuseChantierId?: string }, create = true) {
     if (chantierFor.has(g.id)) return chantierFor.get(g.id)!;
     let c = chantiers.find((x) => x.id === g.pointeuseChantierId)
       ?? chantiers.filter((x) => norm(x.name) === norm(g.name) || x.aliases.some((a) => norm(a) === norm(g.name)))
         .sort((a, b) => Number(b.status === "active") - Number(a.status === "active"))[0];
     const fiche = ficheFromGite(g);
+    if (!c && !create) return null;
     if (!c) {
       report.newChantiers.push(g.name);
       if (dryRun) c = { id: `(nouveau) ${g.name}`, name: g.name, status: "active", aliases: [], data: {} };
@@ -220,10 +224,10 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
     if (!dryRun && g.pointeuseChantierId !== c.id) await lpf.collection("gites").doc(g.id).update({ pointeuseChantierId: c.id });
     chantierFor.set(g.id, c);
     return c;
-  };
+  }
 
-  // Chaque lieu actif des Petites Fées a sa fiche chantier, même sans passage prévu
-  for (const g of gites.values()) if (g.active !== false) await resolve(g);
+  // Fiches existantes complétées pour chaque lieu actif ; un chantier n'est créé que pour un lieu avec un passage
+  for (const g of gites.values()) if (g.active !== false) await resolve(g, false);
 
   // Planning voulu
   const wanted = new Map<string, PlanningDoc>();
