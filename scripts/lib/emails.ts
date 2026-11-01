@@ -83,6 +83,29 @@ export function ownerUpdateEmail(p: Profile, list: Mission[], gites: Map<string,
   ];
 }
 
+/** Résumé du soir : nettoyages effectués aujourd'hui (gîtes), sans durée ni montant */
+export function doneSummaryEmail(p: Profile, list: Mission[], gites: Map<string, Gite>): [string, Email, string] {
+  const names = [...new Set(list.map((m) => missionTitle(m)))];
+  return [
+    list.length > 1 ? `${list.length} nettoyages effectués ✓` : `Nettoyage effectué ✓ — ${missionTitle(list[0])}`,
+    {
+      preheader: `Nous sommes passés : ${names.join(", ")}`,
+      title: list.length > 1 ? "Vos nettoyages sont faits" : "Votre nettoyage est fait",
+      intro: `Bonjour ${first(p.name)},`,
+      lines: ["Nous sommes passés, tout est prêt :"],
+      sections: [
+        {
+          heading: list.length > 1 ? "Effectués" : "Effectué", tone: "success",
+          items: list.map((m) => ({ title: capitalize(formatDate(m.date)), meta: [missionTitle(m), where(gites.get(m.giteId))].filter(Boolean).join(" · ") })),
+        },
+      ],
+      cta: { label: "Voir mes passages", url: `${APP_URL}/espace/historique/` },
+      after: ["Merci pour votre confiance !"],
+    },
+    "DONE",
+  ];
+}
+
 export function reminderEmail(p: Profile, period: string, missing: string[], s: Settings): [string, Email, string] {
   const url = `${APP_URL}/espace/planifier/?mois=${period}`;
   return [

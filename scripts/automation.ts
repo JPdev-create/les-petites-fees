@@ -15,7 +15,7 @@ process.env.TZ ||= "Europe/Brussels";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { initAdmin } from "./lib/admin";
 import { APP_URL, send, sendSms } from "./lib/mailer";
-import { adminRequestsEmail, adminSignupEmail, inviteEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
+import { adminRequestsEmail, adminSignupEmail, doneSummaryEmail, inviteEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
 import { MAX_ICS_BYTES, isReservation, parseIcs, safeFeedUrl } from "./lib/ical";
 import { extendAll } from "./lib/recurrences";
 import { initPointeuse, syncPointeuse } from "./lib/pointeuse";
@@ -119,6 +119,35 @@ async function notifyOwners(s: Settings, people: Map<string, Profile>) {
   snap.docs.forEach((d) => batch.update(d.ref, { notifyOwner: null }));
   await batch.commit();
   return snap.size;
+}
+
+/* ---------------- 4. Résumé du soir : nettoyages effectués (gîtes) ---------------- */
+async function notifyDone(s: Settings, people: Map<string, Profile>) {
+  // Une fois par jour, après l'envoi à la pointeuse (19 h) : un passage marqué effectué par erreur peut encore être rouvert
+  if (new Date().getHours() < POINTEUSE_HOUR || s.lastDoneSummaryRun?.slice(0, 10) === todayISO()) return null;
+  const snap = await db.collection("missions").where("notifyDone", "==", true).get();
+  await db.doc("settings/main").set({ lastDoneSummaryRun: todayISO() }, { merge: true });
+  if (snap.empty) return 0;
+  const gites = await giteMap();
+  const groups = new Map<string, Mission[]>();
+  for (const d of snap.docs) {
+    const m = { id: d.id, ...d.data() } as Mission;
+    if (m.status !== "DONE" || gites.get(m.giteId)?.kind !== "GITE") continue; // seulement les gîtes
+    groups.set(m.ownerEmail, [...(groups.get(m.ownerEmail) ?? []), m]);
+  }
+  let sent = 0;
+  for (const [email, list] of groups) {
+    const p = people.get(email);
+    if (!p || !p.active || !p.notifyEmail) continue;
+    list.sort((a, b) => a.date.localeCompare(b.date));
+    const [subject, mail, kind] = doneSummaryEmail(p, list, gites);
+    await send(db, p.email, subject, mail, s, kind);
+    sent++;
+  }
+  const batch = db.batch();
+  snap.docs.forEach((d) => batch.update(d.ref, { notifyDone: false }));
+  await batch.commit();
+  return sent;
 }
 
 /* ---------------- 5. Synchronisation iCal ---------------- */
@@ -301,6 +330,7 @@ async function main() {
     admins: await notifyAdmins(s, people),
     inscriptions: await newSignups(s, people),
     clients: await notifyOwners(s, people),
+    effectues: await notifyDone(s, people),
     relances: await monthlyReminders(s, people),
     purge: await purge(),
   };

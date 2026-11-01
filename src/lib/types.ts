@@ -81,6 +81,7 @@ export type Mission = {
   hourlyRate?: number | null; // tarif horaire appliqué
   notifyAdmin?: boolean;
   notifyOwner?: string | null; // CONFIRMED | REFUSED | MOVED | CANCELLED → e-mail à envoyer au client
+  notifyDone?: boolean; // effectué, à annoncer au client dans le résumé du soir (gîtes seulement)
   cancelledBy?: string;
   recurrenceId?: string | null; // passage généré par un passage régulier
   occurrenceDate?: string | null; // date prévue par la série (avant un éventuel déplacement)
@@ -153,6 +154,7 @@ export type Settings = {
   lastReminderRun?: string;
   lastAutomationRun?: string;
   lastPointeuseRun?: string; // dernier envoi du planning vers la Pointeuse LPF
+  lastDoneSummaryRun?: string; // dernier résumé « nettoyages effectués » envoyé aux clients (AAAA-MM-JJ)
   pointeuseError?: string | null;
   syncRequestedAt?: string | null;
 };

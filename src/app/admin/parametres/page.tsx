@@ -19,8 +19,8 @@ export default function SettingsPage() {
   const save = async () => {
     setBusy(true);
     try {
-      const { lastReminderRun, lastAutomationRun, syncRequestedAt, lastPointeuseRun, pointeuseError, ...rest } = s;
-      void lastReminderRun; void lastAutomationRun; void syncRequestedAt; void lastPointeuseRun; void pointeuseError;
+      const { lastReminderRun, lastAutomationRun, syncRequestedAt, lastPointeuseRun, pointeuseError, lastDoneSummaryRun, ...rest } = s;
+      void lastReminderRun; void lastAutomationRun; void syncRequestedAt; void lastPointeuseRun; void pointeuseError; void lastDoneSummaryRun;
       await saveSettings(rest);
       toast("Paramètres enregistrés");
     } catch {
