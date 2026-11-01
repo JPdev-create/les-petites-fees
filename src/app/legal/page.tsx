@@ -123,7 +123,7 @@ export default function LegalPage() {
               <li>L&apos;espace client est réservé aux clients de {s.companyName}. Votre accès est personnel : ne partagez pas votre compte.</li>
               <li>Une demande de passage n&apos;est définitive qu&apos;après confirmation par {s.companyName}, notifiée par e-mail et visible dans votre espace.</li>
               <li>Les demandes et annulations doivent être faites au moins {s.minNoticeHours} heures à l&apos;avance ; en deçà, contactez-nous par téléphone.</li>
-              <li>Les prestations sont réalisées au tarif convenu pour chaque lieu ; la facturation se fait en dehors de cet espace, selon les modalités habituelles de {s.companyName}.</li>
+              <li>Les prestations sont réalisées selon ce qui a été convenu pour chaque lieu avec {s.companyName}.</li>
               <li>Vous êtes responsable de l&apos;exactitude des informations d&apos;accès communiquées (codes, consignes). Elles ne sont visibles que par vous et par {s.companyName}.</li>
               <li>Le service est fourni « en l&apos;état » ; nous mettons tout en œuvre pour qu&apos;il soit disponible, mais une interruption ponctuelle reste possible. En cas de doute sur un passage, appelez-nous.</li>
               <li>Ces conditions sont régies par le droit belge. Tout litige relève des tribunaux de l&apos;arrondissement judiciaire du Luxembourg (division Marche-en-Famenne), sans préjudice des règles protectrices du consommateur.</li>

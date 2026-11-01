@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Clock, Ban } from "lucide-react";
+import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Ban } from "lucide-react";
 import type { Gite, Mission, MissionStatus } from "@/lib/types";
-import { SOURCE, euros, formatDate, relativeDay, todayISO, periodOf, timeAgo, addDays, missionWhen } from "@/lib/format";
+import { SOURCE, formatDate, relativeDay, todayISO, periodOf, timeAgo, addDays, missionWhen } from "@/lib/format";
 import { deleteMission, moveMission, setMissionsStatus, adminCreateMissions, completeMissions, confirmOnDate, saveMissionNote } from "@/lib/actions";
 import { useLiveDoc } from "@/lib/hooks";
-import { durationLabel, hourlyAmount, isHourly, missionPriceLabel } from "@/lib/pricing";
+import { durationLabel } from "@/lib/pricing";
 import { missionTitle, recurrenceLabel } from "@/lib/recurrence";
 import { useAdmin } from "./admin-data";
 import { Field, Modal, Spinner, StatusBadge, Toggle } from "./ui";
@@ -52,8 +52,7 @@ export function MissionLine({ m, onClick, showOwner = true, right }: { m: Missio
 export function MissionDialog({ mission, onClose }: { mission: Mission | null; onClose: () => void }) {
   const { me, giteById, missions, recurrences } = useAdmin();
   const live = mission ? missions.find((x) => x.id === mission.id) ?? mission : null;
-  const [mode, setMode] = useState<"view" | "move" | "refuse" | "done" | "pick">("view");
-  const [worked, setWorked] = useState(120);
+  const [mode, setMode] = useState<"view" | "move" | "refuse" | "pick">("view");
   const [date, setDate] = useState("");
   const [movePeriod, setMovePeriod] = useState(periodOf(todayISO()));
   const [time, setTime] = useState("");
@@ -72,7 +71,6 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
     setTime(mission.time ?? "");
     setReason("");
     setNote(mission.adminNote ?? "");
-    setWorked(mission.workedMin ?? giteById.get(mission.giteId)?.durationMin ?? 120);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mission]);
 
@@ -92,8 +90,7 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
       setBusy(false);
     }
   };
-  const hourly = isHourly(gite) && (gite?.hourlyRate ?? 0) > 0;
-  const done = () => (hourly ? setMode("done") : run(() => completeMissions([{ m }], giteById, me.name), "Passage marqué comme effectué"));
+  const done = () => run(() => completeMissions([{ m }], giteById, me.name), "Passage marqué comme effectué");
   const series = m.recurrenceId ? recurrences.find((r) => r.id === m.recurrenceId) : undefined;
   const sameDay = missions.filter((x) => x.date === m.date && x.id !== m.id && x.status !== "CANCELLED" && x.status !== "REFUSED");
 
@@ -107,14 +104,7 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
         </span>
       }
       footer={
-        mode === "done" ? (
-          <>
-            <button className="btn-ghost" onClick={() => setMode("view")}>Retour</button>
-            <button className="btn-success" disabled={busy} onClick={() => run(() => completeMissions([{ m, workedMin: worked }], giteById, me.name), `Passage effectué — ${durationLabel(worked)}, ${euros(hourlyAmount(gite!.hourlyRate!, worked))} HTVA`)}>
-              {busy ? <Spinner /> : <CheckCheck className="size-4" />} Valider {euros(hourlyAmount(gite?.hourlyRate ?? 0, worked))} HTVA
-            </button>
-          </>
-        ) : mode === "pick" ? (
+        mode === "pick" ? (
           <>
             <button className="btn-ghost" onClick={() => setMode("view")}>Retour</button>
             <button className="btn-primary" disabled={busy || !date} onClick={() => run(() => confirmOnDate(m, date, time || null, me.name), `Confirmé le ${formatDate(date, "medium")} — le client sera prévenu`)}>
@@ -157,9 +147,6 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
                 </button>
               </>
             )}
-            {m.status === "DONE" && hourly && (
-              <button className="btn-secondary" onClick={() => setMode("done")}><Clock className="size-4" /> Modifier la durée</button>
-            )}
             {(m.status === "DONE" || m.status === "REFUSED" || m.status === "CANCELLED") && (
               <button className="btn-secondary" disabled={busy} onClick={() => run(() => setMissionsStatus([m.id], m.status === "DONE" ? "CONFIRMED" : "REQUESTED", me.name), "Passage rouvert")}>
                 <RotateCcw className="size-4" /> Rouvrir
@@ -169,28 +156,7 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
         )
       }
     >
-      {mode === "done" ? (
-        <div className="space-y-4">
-          <p className="muted text-sm">Ce lieu est au tarif horaire ({euros(gite?.hourlyRate ?? 0)}/h HTVA). Combien de temps a duré le nettoyage ?</p>
-          <div className="grid grid-cols-4 gap-2">
-            {[60, 90, 120, 150, 180, 210, 240, 300].map((v) => (
-              <button key={v} type="button" onClick={() => setWorked(v)} className={`rounded-xl border py-2.5 text-sm font-semibold transition ${worked === v ? "border-transparent bg-brand-600 text-white" : "border-[var(--border)] hover:bg-zinc-50 dark:hover:bg-white/5"}`}>{durationLabel(v)}</button>
-            ))}
-          </div>
-          <Field label="Durée exacte">
-            <div className="flex items-center gap-2">
-              <input type="number" min={0} className="input w-24" value={Math.floor(worked / 60)} onChange={(e) => setWorked(Math.max(0, +e.target.value) * 60 + (worked % 60))} /> <span className="muted text-sm">h</span>
-              <select className="input w-28" value={worked % 60} onChange={(e) => setWorked(Math.floor(worked / 60) * 60 + +e.target.value)}>
-                {[0, 15, 30, 45].map((v) => <option key={v} value={v}>{String(v).padStart(2, "0")} min</option>)}
-              </select>
-            </div>
-          </Field>
-          <div className="flex items-center justify-between rounded-2xl bg-emerald-50 px-4 py-3 text-emerald-900 dark:bg-emerald-400/10 dark:text-emerald-200">
-            <span className="text-sm">{durationLabel(worked)} × {euros(gite?.hourlyRate ?? 0)}</span>
-            <span className="font-display text-xl font-semibold">{euros(hourlyAmount(gite?.hourlyRate ?? 0, worked))} <span className="text-xs font-normal">HTVA</span></span>
-          </div>
-        </div>
-      ) : mode === "pick" ? (
+      {mode === "pick" ? (
         <div className="space-y-4">
           <p className="muted text-sm">Le client accepte un passage <strong className="text-zinc-800 dark:text-zinc-200">{missionWhen(m).toLowerCase()}</strong>. Choisissez le jour : il recevra la confirmation avec cette date.</p>
           <MonthPicker period={movePeriod} onPeriod={setMovePeriod} selected={new Set([date])} soft={new Set(daysBetween(m.date, m.dateTo ?? m.date))} onToggle={setDate} minDate={m.date < todayISO() ? todayISO() : m.date} maxDate={m.dateTo ?? m.date} />
@@ -219,7 +185,7 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
             <div><dt className="muted text-xs">{m.dateTo ? "Période souhaitée" : "Date"}</dt><dd className="font-semibold">{m.dateTo ? missionWhen(m) : formatDate(m.date)}</dd></div>
             <div><dt className="muted text-xs">Heure</dt><dd className="font-semibold">{m.time || "—"}</dd></div>
             <div><dt className="muted text-xs">Client</dt><dd className="font-semibold">{m.ownerName || "—"}</dd></div>
-            <div><dt className="muted text-xs">Prix HTVA</dt><dd className="font-semibold">{m.workedMin ? missionPriceLabel(m) : hourly ? `≈ ${euros(m.price)} (${euros(gite!.hourlyRate!)}/h)` : euros(m.price)}</dd></div>
+            <div><dt className="muted text-xs">Durée</dt><dd className="font-semibold">{durationLabel(m.workedMin ?? gite?.durationMin ?? 0)}</dd></div>
             <div><dt className="muted text-xs">Origine</dt><dd>{SOURCE[m.source]}{m.icalSource ? ` (${m.icalSource})` : ""}</dd></div>
             <div><dt className="muted text-xs">Mis à jour</dt><dd>{m.updatedAt ? timeAgo(m.updatedAt) : "—"}</dd></div>
           </dl>

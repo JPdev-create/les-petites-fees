@@ -16,6 +16,8 @@ async function main() {
   const r = await syncPointeuse(db, pt, dryRun);
   r.lines.sort().forEach((l) => console.log(l));
   if (r.newChantiers.length) console.log(`\nChantiers ${dryRun ? "à créer" : "créés"} dans la pointeuse (aucun chantier du même nom) : ${r.newChantiers.join(", ")}`);
+  if (r.validated.length) console.log(`\nPassages ${dryRun ? "à marquer" : "marqués"} effectués d'après les pointages :\n  ${r.validated.join("\n  ")}`);
+  if (r.fiches.length) console.log(`\nFiches chantier ${dryRun ? "à compléter" : "complétées"} :\n  ${r.fiches.join("\n  ")}`);
   console.log(`\n${dryRun ? "Simulation (rien n'a été écrit)" : "✓ Planning envoyé"} — ${POINTEUSE_WEEKS} semaines : ${r.created} ajouté(s), ${r.updated} modifié(s), ${r.deleted} retiré(s), ${r.notified} notification(s) d'équipe`);
   if (!dryRun) await db.doc("settings/main").set({ lastPointeuseRun: new Date().toISOString(), pointeuseError: null }, { merge: true });
 }

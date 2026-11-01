@@ -98,7 +98,7 @@ export default function HelpPage() {
               Vous louez sur <B>Airbnb</B> ou <B>Booking</B> ? Collez le lien d&apos;export de votre calendrier (iCal) dans la fiche du lieu : chaque départ de voyageurs
               créera automatiquement une demande de nettoyage, sans rien encoder.
             </Tip>
-            <p className="text-sm text-zinc-500">Le tarif de chaque lieu est fixé par {s.companyName}. Un nouveau lieu est vérifié par notre équipe avant le premier passage.</p>
+            <p className="text-sm text-zinc-500">Un nouveau lieu est vérifié par notre équipe avant le premier passage.</p>
           </Section>
 
           <Section id="encoder" n={3} icon={CalendarPlus} title="Demander un nettoyage">

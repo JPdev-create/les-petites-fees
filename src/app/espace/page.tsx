@@ -7,7 +7,7 @@ import { useOwner } from "@/components/owner-data";
 import { OwnerMissionSheet } from "@/components/owner-mission";
 import { InstallPrompt } from "@/components/pwa";
 import { Spinner, StatusBadge } from "@/components/ui";
-import { currentPeriod, euros, formatDate, periodLabel, relativeDay, shiftPeriod, todayISO, capitalize, missionWhen } from "@/lib/format";
+import { currentPeriod, formatDate, periodLabel, relativeDay, shiftPeriod, todayISO, capitalize, missionWhen } from "@/lib/format";
 import { missionTitle } from "@/lib/recurrence";
 import type { Mission } from "@/lib/types";
 

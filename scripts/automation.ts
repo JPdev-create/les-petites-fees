@@ -256,10 +256,10 @@ async function pointeuse(force: boolean) {
     if (!pt) return null;
     const r = await syncPointeuse(db, pt);
     await db.doc("settings/main").set({ lastPointeuseRun: now(), pointeuseError: null }, { merge: true });
-    if (r.created || r.updated || r.deleted || r.newChantiers.length) {
-      await db.collection("activity").add({ at: now(), by: "Pointeuse", message: `Planning envoyé : ${r.created} ajouté(s), ${r.updated} modifié(s), ${r.deleted} retiré(s)${r.newChantiers.length ? ` · nouveaux chantiers : ${r.newChantiers.join(", ")}` : ""}` });
+    if (r.created || r.updated || r.deleted || r.newChantiers.length || r.fiches.length) {
+      await db.collection("activity").add({ at: now(), by: "Pointeuse", message: `Planning envoyé : ${r.created} ajouté(s), ${r.updated} modifié(s), ${r.deleted} retiré(s)${r.newChantiers.length ? ` · nouveaux chantiers : ${r.newChantiers.join(", ")}` : ""}${r.fiches.length ? ` · ${r.fiches.length} fiche(s) chantier complétée(s)` : ""}` });
     }
-    return { ajoutes: r.created, modifies: r.updated, retires: r.deleted, chantiers: r.newChantiers.length };
+    return { ajoutes: r.created, modifies: r.updated, retires: r.deleted, chantiers: r.newChantiers.length, effectues: r.validated.length };
   } catch (e) {
     await db.doc("settings/main").set({ pointeuseError: (e instanceof Error ? e.message : String(e)).slice(0, 300) }, { merge: true });
     console.error("Pointeuse :", e);

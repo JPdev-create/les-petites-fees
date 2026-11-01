@@ -1,7 +1,7 @@
 // Contenu des e-mails automatiques : chaque message donne toutes les infos utiles
 // (quoi, où, quand, combien) et un bouton qui mène directement à la bonne page.
 import type { Gite, Mission, Profile, Settings } from "../../src/lib/types";
-import { capitalize, euros, formatDate, periodLabel, missionWhen } from "../../src/lib/format";
+import { capitalize, formatDate, periodLabel, missionWhen } from "../../src/lib/format";
 import { missionTitle } from "../../src/lib/recurrence";
 import { APP_URL, esc, type Email, type EmailItem } from "./mailer";
 
@@ -147,10 +147,10 @@ export function adminSignupEmail(a: Profile, clients: Profile[], places: Gite[])
       audience: "admin",
       title: places.length ? "Un client a ajouté un lieu" : "Un nouveau client s'est inscrit",
       intro: `Bonjour ${first(a.name)},`,
-      lines: places.length ? ["Vérifiez les informations et fixez le tarif du passage, puis enregistrez la fiche pour la valider."] : [],
+      lines: places.length ? ["Vérifiez les informations, puis enregistrez la fiche pour la valider."] : [],
       sections: [
         { heading: "Nouveaux clients", tone: "info", items: clients.map((p) => ({ title: `${p.name}${p.company ? ` — ${p.company}` : ""}`, meta: [p.email, p.phone, p.billingAddress?.replace(/\n/g, ", ")].filter(Boolean).join(" · ") })) },
-        { heading: "Lieux à vérifier", tone: "warning", items: places.map((g) => ({ title: `${g.name} — ${g.ownerName}`, meta: `${where(g)} · ${g.bedrooms} ch., ${g.capacity} pers. · tarif provisoire ${euros(g.price)} HTVA` })) },
+        { heading: "Lieux à vérifier", tone: "warning", items: places.map((g) => ({ title: `${g.name} — ${g.ownerName}`, meta: `${where(g)} · ${g.bedrooms} ch., ${g.capacity} pers.` })) },
       ],
       cta: { label: places.length ? "Vérifier les lieux" : "Voir les clients", url: `${APP_URL}/admin/${places.length ? "lieux" : "clients"}/` },
     },
