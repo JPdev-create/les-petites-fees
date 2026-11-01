@@ -4,7 +4,8 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
 export function initAdmin() {
-  if (!getApps().length) {
+  // Connexion par défaut (Petites Fées) : ne pas la confondre avec la connexion nommée « pointeuse »
+  if (!getApps().some((a) => a.name === "[DEFAULT]")) {
     if (process.env.FIRESTORE_EMULATOR_HOST) {
       initializeApp({ projectId: process.env.GCLOUD_PROJECT || "demo-lpf" });
     } else {
