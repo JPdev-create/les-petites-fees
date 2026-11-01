@@ -64,6 +64,17 @@ export function occurrences(r: Pick<Recurrence, "freq" | "interval" | "days" | "
   return out;
 }
 
+/**
+ * Date de départ ramenée au premier vrai passage (ex. départ un dimanche, série lun./jeu. → le lundi suivant).
+ * Sinon la semaine de départ serait vide : « tous les 15 jours » sauterait une semaine et l'alternance
+ * commencerait par la 2e variante.
+ */
+export function alignStart<R extends Pick<Recurrence, "freq" | "interval" | "days" | "nth" | "weekday" | "startDate">>(r: R): R {
+  if (!r.startDate) return r;
+  const first = occurrences({ ...r, interval: 1, endDate: null, variants: [] }, r.startDate, addDays(r.startDate, 400))[0];
+  return first ? { ...r, startDate: first.date } : r;
+}
+
 const NTH = { 1: "1er", 2: "2e", 3: "3e", 4: "4e", [-1]: "dernier" } as Record<number, string>;
 
 /** « Chaque semaine : lun., jeu. » · « Toutes les 2 semaines : mer. » · « Le dernier jeudi du mois » */
