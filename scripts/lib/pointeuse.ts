@@ -4,7 +4,7 @@
 import { createHash } from "node:crypto";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firestore";
-import { addDays, todayISO } from "../../src/lib/format";
+import { addDays, toISODate, todayISO } from "../../src/lib/format";
 import { missionTitle } from "../../src/lib/recurrence";
 import type { Gite, Mission } from "../../src/lib/types";
 
@@ -106,7 +106,55 @@ type PlanningDoc = {
 };
 type Change = { date: string; type: "ajout" | "suppression"; chantier: string; timestamp: string };
 
-export type PointeuseReport = { created: number; updated: number; deleted: number; newChantiers: string[]; notified: number; lines: string[] };
+export type PointeuseReport = {
+  created: number; updated: number; deleted: number; newChantiers: string[]; fiches: string[]; validated: string[]; notified: number; lines: string[];
+};
+
+type PtChantier = { id: string; name: string; status: string; aliases: string[]; data: FirebaseFirestore.DocumentData };
+
+/** Champs de la fiche chantier de la pointeuse qui viennent du lieu des Petites Fées */
+type Fiche = { address: string; email: string; totalHeuresPrevues: number; fixedAppointment: string; additionalInfo: string };
+const FICHE_LABELS: Record<keyof Fiche, string> = {
+  address: "adresse", email: "e-mail", totalHeuresPrevues: "heures prévues", fixedAppointment: "heure habituelle", additionalInfo: "infos",
+};
+const KIND_LABELS: Record<Gite["kind"], string> = { GITE: "Gîte", BUREAU: "Bureau", APPARTEMENT: "Appartement", AUTRE: "Autre" };
+
+export function ficheFromGite(g: Gite): Fiche {
+  const count = (n: number, one: string, many: string) => (n ? `${n} ${n > 1 ? many : one}` : "");
+  const size = [
+    count(g.bedrooms, "chambre", "chambres"), count(g.bathrooms, "salle de bain", "salles de bain"),
+    g.capacity ? `${g.capacity} pers.` : "", count(g.bedSets, "parure de lit", "parures de lit"), count(g.towelSets, "set de serviettes", "sets de serviettes"),
+  ].filter(Boolean).join(" · ");
+  const info = [
+    `${KIND_LABELS[g.kind] ?? "Lieu"} des Petites Fées${g.ownerName ? ` — propriétaire : ${g.ownerName}` : ""}`,
+    size,
+    g.accessInfo ? `Accès : ${g.accessInfo}` : "",
+    g.notes ? `Notes : ${g.notes}` : "",
+  ].filter(Boolean).join("\n");
+  return {
+    address: address(g), email: g.ownerEmail ?? "",
+    totalHeuresPrevues: Math.round(((g.durationMin ?? 0) / 60) * 2) / 2,
+    fixedAppointment: g.defaultTime ?? "", additionalInfo: info,
+  };
+}
+
+/**
+ * Ce qu'il faut écrire sur une fiche existante : un champ est (re)rempli s'il est vide,
+ * ou s'il contient encore la valeur envoyée la dernière fois (donc pas retouché par l'admin).
+ */
+export function fichePatch(current: FirebaseFirestore.DocumentData, fiche: Fiche): Partial<Fiche> & { lpfGiteId?: string; coordinates?: null } {
+  const before = (current.lpfSynced ?? {}) as Partial<Fiche>;
+  const patch: Partial<Fiche> & { coordinates?: null } = {};
+  for (const key of Object.keys(fiche) as (keyof Fiche)[]) {
+    const now = current[key], next = fiche[key];
+    const empty = now === undefined || now === null || now === "" || now === 0;
+    if (next === now || next === "" || next === 0) continue;
+    if (empty || (key in before && before[key] === now)) (patch as Record<string, unknown>)[key] = next;
+  }
+  // Adresse changée : l'ancien point GPS ne vaut plus, la pointeuse le recalcule
+  if (patch.address && current.coordinates) patch.coordinates = null;
+  return patch;
+}
 
 /**
  * Synchronise les passages confirmés (aujourd'hui → +6 semaines) vers le planning de la pointeuse.
@@ -120,7 +168,7 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
   const today = todayISO();
   const until = addDays(today, POINTEUSE_WEEKS * 7);
   const t = new Date().toISOString();
-  const report: PointeuseReport = { created: 0, updated: 0, deleted: 0, newChantiers: [], notified: 0, lines: [] };
+  const report: PointeuseReport = { created: 0, updated: 0, deleted: 0, newChantiers: [], fiches: [], validated: [], notified: 0, lines: [] };
 
   const [mSnap, gSnap, cSnap, pSnap, uSnap] = await Promise.all([
     lpf.collection("missions").where("date", ">=", today).where("date", "<=", until).get(),
@@ -131,36 +179,51 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
   ]);
   const gites = new Map(gSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() } as Gite & { pointeuseChantierId?: string }]));
   // lpfAliases : autres noms du chantier côté Petites Fées (ex. « EVERCAR » dans la pointeuse = « Evercare » chez LPF)
-  const chantiers = cSnap.docs.map((d) => ({
+  const chantiers: PtChantier[] = cSnap.docs.map((d) => ({
     id: d.id, name: String(d.data().name ?? ""), status: d.data().status as string,
     aliases: (Array.isArray(d.data().lpfAliases) ? d.data().lpfAliases : []).map(String) as string[],
+    data: d.data(),
   }));
   const userIdByName = new Map(uSnap.docs.map((d) => [String(d.data().displayName ?? ""), d.id]));
 
-  // Lieu des Petites Fées → chantier de la pointeuse (lien mémorisé sur le lieu, sinon même nom)
+  // Lieu des Petites Fées → chantier de la pointeuse (lien mémorisé sur le lieu, sinon même nom).
+  // La fiche du chantier reprend les données du lieu (adresse, propriétaire, durée, accès…).
   const chantierFor = new Map<string, { id: string; name: string }>();
   const resolve = async (g: Gite & { pointeuseChantierId?: string }) => {
     if (chantierFor.has(g.id)) return chantierFor.get(g.id)!;
     let c = chantiers.find((x) => x.id === g.pointeuseChantierId)
       ?? chantiers.filter((x) => norm(x.name) === norm(g.name) || x.aliases.some((a) => norm(a) === norm(g.name)))
         .sort((a, b) => Number(b.status === "active") - Number(a.status === "active"))[0];
+    const fiche = ficheFromGite(g);
     if (!c) {
       report.newChantiers.push(g.name);
-      if (dryRun) c = { id: `(nouveau) ${g.name}`, name: g.name, status: "active", aliases: [] };
+      if (dryRun) c = { id: `(nouveau) ${g.name}`, name: g.name, status: "active", aliases: [], data: {} };
       else {
         const ref = await pt.collection("chantiers").add({
-          name: g.name, address: address(g), email: "", totalHeuresPrevues: 0, fixedAppointment: "", timeWindowStart: "", timeWindowEnd: "",
-          isHideable: false, keyboxCodes: [], additionalInfo: g.accessInfo ?? "", coordinates: null,
+          name: g.name, ...fiche, timeWindowStart: "", timeWindowEnd: "",
+          isHideable: false, keyboxCodes: [], coordinates: null, lpfGiteId: g.id, lpfSynced: fiche,
           status: "active", source: "lpf", createdAt: FieldValue.serverTimestamp(),
         });
-        c = { id: ref.id, name: g.name, status: "active", aliases: [] };
+        c = { id: ref.id, name: g.name, status: "active", aliases: [], data: {} };
         chantiers.push(c);
+      }
+    } else {
+      // Fiche existante : on complète ce qui est vide, et on suit les changements faits chez LPF,
+      // sans jamais écraser ce que l'admin a modifié lui-même dans la pointeuse.
+      const patch = fichePatch(c.data, fiche);
+      if (c.data.lpfGiteId !== g.id) patch.lpfGiteId = g.id;
+      if (Object.keys(patch).length) {
+        report.fiches.push(`${c.name} : ${Object.keys(patch).filter((k) => k in fiche).map((k) => FICHE_LABELS[k as keyof Fiche]).join(", ") || "lien"}`);
+        if (!dryRun) await pt.collection("chantiers").doc(c.id).update({ ...patch, lpfSynced: fiche, updatedAt: FieldValue.serverTimestamp() });
       }
     }
     if (!dryRun && g.pointeuseChantierId !== c.id) await lpf.collection("gites").doc(g.id).update({ pointeuseChantierId: c.id });
     chantierFor.set(g.id, c);
     return c;
   };
+
+  // Chaque lieu actif des Petites Fées a sa fiche chantier, même sans passage prévu
+  for (const g of gites.values()) if (g.active !== false) await resolve(g);
 
   // Planning voulu
   const wanted = new Map<string, PlanningDoc>();
@@ -225,5 +288,54 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
       await batch.commit();
     }
   }
+  report.validated = await validateFromPointages(lpf, pt, gites, chantiers, chantierFor, dryRun);
   return report;
+}
+
+/** Jours en arrière où un passage confirmé peut encore être validé par les pointages */
+const VALIDATION_DAYS = 14;
+
+/**
+ * Fin de pointage → passage effectué chez Les Petites Fées.
+ * Un passage confirmé passe en « Effectué » quand des pointages terminés existent le même jour sur son chantier
+ * et qu'il n'y en a plus aucun en cours. La durée pointée (pauses déduites) est notée sur le passage.
+ */
+async function validateFromPointages(
+  lpf: Firestore, pt: Firestore, gites: Map<string, Gite & { pointeuseChantierId?: string }>,
+  chantiers: PtChantier[], chantierFor: Map<string, { id: string; name: string }>, dryRun: boolean,
+): Promise<string[]> {
+  const today = todayISO();
+  const since = addDays(today, -VALIDATION_DAYS);
+  const [mSnap, pSnap] = await Promise.all([
+    lpf.collection("missions").where("date", ">=", since).where("date", "<=", today).get(),
+    pt.collection("pointages").where("timestamp", ">=", new Date(`${since}T00:00:00`).toISOString()).get(),
+  ]);
+  const pointages = pSnap.docs.map((d) => d.data()).map((p) => ({
+    chantierId: String(p.chantierId ?? ""), chantier: norm(String(p.chantier ?? "")),
+    date: toISODate(new Date(p.timestamp)), start: new Date(p.timestamp).getTime(),
+    end: p.endTime ? new Date(p.endTime).getTime() : null, pauseMs: Number(p.pauseDurationMs) || 0,
+  }));
+  const t = new Date().toISOString();
+  const done: string[] = [];
+  const batch = lpf.batch();
+  for (const d of mSnap.docs) {
+    const m = { id: d.id, ...d.data() } as Mission;
+    const g = gites.get(m.giteId);
+    if (m.status !== "CONFIRMED" || !g) continue;
+    const cid = chantierFor.get(g.id)?.id ?? g.pointeuseChantierId;
+    const c = chantiers.find((x) => x.id === cid);
+    if (!c) continue;
+    const names = new Set([c.name, ...c.aliases].map(norm));
+    const sameDay = pointages.filter((p) => p.date === m.date && (p.chantierId === c.id || names.has(p.chantier)));
+    if (!sameDay.length || sameDay.some((p) => p.end === null)) continue; // personne n'a pointé, ou pointage encore en cours
+    const workedMin = Math.round(sameDay.reduce((s, p) => s + Math.max(0, p.end! - p.start - p.pauseMs), 0) / 60000);
+    const doneAt = new Date(Math.max(...sameDay.map((p) => p.end!))).toISOString();
+    batch.update(d.ref, { status: "DONE", doneAt, doneBy: "Pointeuse", workedMin, updatedAt: t, notifyAdmin: false });
+    done.push(`✓ ${m.date} ${missionTitle(m)} (${Math.floor(workedMin / 60)} h ${String(workedMin % 60).padStart(2, "0")} pointées)`);
+  }
+  if (!dryRun && done.length) {
+    await batch.commit();
+    await lpf.collection("activity").add({ at: t, by: "Pointeuse", message: `${done.length} passage(s) marqué(s) effectué(s) d'après les pointages` });
+  }
+  return done;
 }
