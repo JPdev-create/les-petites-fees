@@ -1,13 +1,14 @@
-# E-mails, synchronisation Airbnb/Booking et relances — toutes les 30 minutes.
+# E-mails, synchronisation Airbnb/Booking et relances — toutes les 3 heures (quota Firebase gratuit).
+# Pointeuse LPF : une fois par jour, au premier passage après 19 h. « Run workflow » lance tout tout de suite.
 name: Automatisations
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 */3 * * *"
   workflow_dispatch:
     inputs:
       sync:
-        description: "Forcer la synchronisation iCal"
+        description: "Forcer la synchronisation iCal et l'envoi à la pointeuse"
         type: boolean
         default: false
 

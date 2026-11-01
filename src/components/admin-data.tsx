@@ -34,7 +34,7 @@ export function AdminDataProvider({ me, children }: { me: Profile; children: Rea
   const recurrences = useLive<Recurrence>((db) => collection(db, "recurrences"), []);
   const settings = useSettings();
 
-  // Prolonge les passages réguliers à l'ouverture (en plus de l'automatisation toutes les 30 min)
+  // Prolonge les passages réguliers à l'ouverture (en plus de l'automatisation toutes les 3 heures)
   const extending = useRef(false);
   useEffect(() => {
     if (extending.current || recurrences.loading || gites.loading) return;
