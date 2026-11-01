@@ -297,7 +297,7 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
 }
 
 /** Jours en arrière où un passage confirmé peut encore être validé par les pointages */
-const VALIDATION_DAYS = 14;
+const VALIDATION_DAYS = 3; // court : chaque envoi relit ces pointages (quota gratuit Firebase : 50 000 lectures par jour)
 
 /**
  * Fin de pointage → passage effectué chez Les Petites Fées.
