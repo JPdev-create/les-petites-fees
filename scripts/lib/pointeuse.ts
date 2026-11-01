@@ -174,7 +174,8 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
     lpf.collection("missions").where("date", ">=", today).where("date", "<=", until).get(),
     lpf.collection("gites").get(),
     pt.collection("chantiers").get(),
-    pt.collection("planning").where("source", "==", "lpf").get(),
+    // Seulement à partir d'aujourd'hui : l'historique n'est jamais modifié, inutile de le relire (quota Firebase)
+    pt.collection("planning").where("date", ">=", today).get(),
     pt.collection("users").get(),
   ]);
   const gites = new Map(gSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() } as Gite & { pointeuseChantierId?: string }]));
@@ -255,7 +256,7 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
       if (uid) changes.set(uid, [...(changes.get(uid) ?? []), { ...c, timestamp: t }]);
     }
   };
-  const current = new Map(pSnap.docs.map((d) => [d.id, d.data() as PlanningDoc]));
+  const current = new Map(pSnap.docs.filter((d) => d.data().source === "lpf").map((d) => [d.id, d.data() as PlanningDoc]));
   for (const [id, data] of wanted) {
     const cur = current.get(id);
     const ref = pt.collection("planning").doc(id);
