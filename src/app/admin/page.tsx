@@ -10,7 +10,7 @@ import { Empty, PageHeader, Stat, Spinner } from "@/components/ui";
 import { toast } from "@/components/toaster";
 import { useLive } from "@/lib/hooks";
 import { setMissionsStatus, queueMail } from "@/lib/actions";
-import { addDays, capitalize, currentPeriod, euros, formatDate, periodLabel, shiftPeriod, startOfWeek, timeAgo, todayISO } from "@/lib/format";
+import { addDays, capitalize, currentPeriod, formatDate, periodLabel, shiftPeriod, startOfWeek, timeAgo, todayISO } from "@/lib/format";
 import type { Activity, Mission } from "@/lib/types";
 
 export default function Dashboard() {
@@ -106,7 +106,7 @@ export default function Dashboard() {
           <Home className="size-5 shrink-0" />
           <p className="flex-1">
             {(() => { const n = gites.filter((g) => g.pendingReview).length; return <><strong>{n > 1 ? `${n} nouveaux lieux` : "Nouveau lieu"}</strong> ajouté{n > 1 ? "s" : ""} par vos clients :{" "}</>; })()}
-            {gites.filter((g) => g.pendingReview).map((g) => `${g.name} (${g.ownerName})`).join(", ")}. Vérifiez le tarif.
+            {gites.filter((g) => g.pendingReview).map((g) => `${g.name} (${g.ownerName})`).join(", ")}. Vérifiez leur fiche.
           </p>
           <ArrowRight className="size-4" />
         </Link>
@@ -116,7 +116,7 @@ export default function Dashboard() {
         <Stat label="Demandes à traiter" value={pending.length} icon={Inbox} tone="amber" href="/admin/demandes/" hint={pending.length ? "Touchez pour valider" : "Tout est à jour 👌"} />
         <Stat label="Passages cette semaine" value={d.week.length} icon={CalendarCheck} hint={`${d.upcoming.length} aujourd'hui et demain`} href="/admin/calendrier/" />
         <Stat label={`Plannings ${periodLabel(nextPeriod).split(" ")[0]}`} value={`${d.activeGites - d.missing.length}/${d.activeGites}`} icon={AlertTriangle} tone={d.missing.length ? "rose" : "emerald"} hint={d.missing.length ? `${d.missing.length} manquant(s)` : "Complet"} />
-        <Stat label="Effectués ce mois" value={d.doneMonth.length} icon={CheckCheck} tone="violet" hint={`${euros(d.doneMonth.reduce((a, m) => a + m.price, 0))} HTVA`} href="/admin/calendrier/" />
+        <Stat label="Effectués ce mois" value={d.doneMonth.length} icon={CheckCheck} tone="violet" hint="Voir le calendrier" href="/admin/calendrier/" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">

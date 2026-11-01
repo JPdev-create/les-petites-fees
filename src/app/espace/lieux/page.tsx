@@ -71,7 +71,7 @@ export default function OwnerPlacesPage() {
         </div>
       )}
 
-      <p className="muted flex gap-2 text-xs"><Info className="mt-0.5 size-3.5 shrink-0" />Le tarif de chaque lieu est fixé par Les Petites Fées. Un nouveau lieu est vérifié par notre équipe avant votre premier passage.</p>
+      <p className="muted flex gap-2 text-xs"><Info className="mt-0.5 size-3.5 shrink-0" />Un nouveau lieu est vérifié par notre équipe avant votre premier passage.</p>
 
       {edit && <PlaceForm gite={edit.gite} onClose={() => setEdit(null)} />}
     </div>

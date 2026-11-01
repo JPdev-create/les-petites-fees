@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, Building2, BellRing, Tag, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Save, Building2, BellRing, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAdmin } from "@/components/admin-data";
 import { Field, PageHeader, Spinner, Toggle } from "@/components/ui";
 import { toast } from "@/components/toaster";
@@ -51,18 +51,6 @@ export default function SettingsPage() {
           </div>
           <Field label="N° de TVA"><input className="input" value={s.vatNumber} onChange={(e) => set("vatNumber", e.target.value)} placeholder="BE0123.456.789" /></Field>
           <p className="hint !mt-0">Ces informations apparaissent dans les mentions légales du site (obligatoires en Belgique).</p>
-        </section>
-
-        <section className="card space-y-4 p-5">
-          <h2 className="flex items-center gap-2 font-display font-semibold"><Tag className="size-4 text-brand-600" /> Tarifs par défaut</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Forfait par défaut (HTVA €)" hint="Prix d'un passage pour un nouveau lieu.">
-              <input type="number" step="0.01" className="input" value={s.defaultPrice / 100} onChange={(e) => set("defaultPrice", Math.round(+e.target.value * 100))} />
-            </Field>
-            <Field label="Tarif horaire par défaut (HTVA €/h)" hint="Proposé quand un lieu passe « à l'heure ».">
-              <input type="number" step="0.5" className="input" value={s.defaultHourlyRate / 100} onChange={(e) => set("defaultHourlyRate", Math.round(+e.target.value * 100))} />
-            </Field>
-          </div>
         </section>
 
         <section className="card space-y-4 p-5">

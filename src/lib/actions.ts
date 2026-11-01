@@ -5,7 +5,7 @@ import {
 } from "firebase/firestore";
 import { sendSignInLinkToEmail } from "firebase/auth";
 import { fb, absoluteUrl } from "./firebase";
-import { addDays, euros, formatDate, periodBounds, periodLabel, periodOf, todayISO } from "./format";
+import { addDays, formatDate, periodBounds, periodLabel, periodOf, todayISO } from "./format";
 import { durationLabel } from "./pricing";
 import { HORIZON_DAYS, isUntouchedOccurrence, occurrenceId, occurrenceMission, occurrences, recurrenceLabel } from "./recurrence";
 import type { Gite, Mission, MissionStatus, Profile, Recurrence, Settings } from "./types";
@@ -82,20 +82,14 @@ export async function setMissionsStatus(ids: string[], status: MissionStatus, by
   await log(by, `${ids.length} passage(s) ${labels[status] ?? status}`);
 }
 
-/**
- * Marque des passages comme effectués. Au tarif horaire, le prix devient
- * durée réelle × tarif (durée fournie, sinon déjà saisie, sinon l'estimation du lieu).
- */
-export async function completeMissions(list: { m: Mission; workedMin?: number }[], gites: Map<string, Gite>, by: string) {
+/** Marque des passages comme effectués (avec la durée réelle si elle est connue). */
+export async function completeMissions(list: { m: Mission; workedMin?: number }[], _gites: Map<string, Gite>, by: string) {
   const batch = writeBatch(db());
   const t = now();
   for (const { m, workedMin } of list) {
-    const g = gites.get(m.giteId);
-    const hourly = g?.pricingMode === "HOURLY" && (g.hourlyRate ?? 0) > 0;
-    const minutes = workedMin ?? m.workedMin ?? g?.durationMin ?? 0;
     batch.update(doc(db(), "missions", m.id), {
       status: "DONE", doneAt: m.doneAt ?? t, updatedAt: t, notifyAdmin: false,
-      ...(hourly ? { workedMin: minutes, hourlyRate: g!.hourlyRate, price: Math.round((g!.hourlyRate! * minutes) / 60) } : {}),
+      ...(workedMin ? { workedMin } : {}),
     });
   }
   await batch.commit();
@@ -281,7 +275,7 @@ export async function selfSignup(email: string, data: Pick<Profile, "name" | "ph
 
 export type OwnerGiteInput = Pick<Gite, "name" | "kind" | "address" | "postalCode" | "city" | "accessInfo" | "notes" | "bedrooms" | "bathrooms" | "capacity" | "bedSets" | "towelSets" | "defaultTime" | "icalFeeds">;
 
-/** Le client ajoute un lieu : tarif par défaut, à vérifier par le gestionnaire. */
+/** Le client ajoute un lieu, à vérifier par le gestionnaire (price : valeur technique exigée par les règles, jamais affichée). */
 export async function ownerCreateGite(owner: Profile, data: OwnerGiteInput, settings: Settings, color: string) {
   const t = now();
   const ref = await addDoc(collection(db(), "gites"), {

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Plus, Search, Home, MapPin, RefreshCw, AlertCircle, Building2, Phone, Mail } from "lucide-react";
 import { useAdmin, missingPlanning } from "@/components/admin-data";
 import { Empty, PageHeader } from "@/components/ui";
-import { priceLabel } from "@/lib/pricing";
-import { KIND, currentPeriod, euros, formatDate, periodLabel, shiftPeriod, todayISO } from "@/lib/format";
+import { durationLabel } from "@/lib/pricing";
+import { KIND, currentPeriod, formatDate, periodLabel, shiftPeriod, todayISO } from "@/lib/format";
 
 export default function PlacesPage() {
   const { gites, missions, submissions, profiles } = useAdmin();
@@ -76,12 +76,12 @@ export default function PlacesPage() {
                     <p className="mt-0.5 font-semibold">{nextM ? formatDate(nextM.date, "medium") : "—"}</p>
                   </div>
                   <div className="rounded-xl bg-zinc-50 p-2.5 dark:bg-white/5">
-                    <p className="muted">Tarif</p>
-                    <p className="mt-0.5 font-semibold">{priceLabel(g)}</p>
+                    <p className="muted">Durée</p>
+                    <p className="mt-0.5 font-semibold">{durationLabel(g.durationMin)}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {g.pendingReview && <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300"><AlertCircle className="size-3" /> Nouveau · tarif à vérifier</span>}
+                  {g.pendingReview && <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300"><AlertCircle className="size-3" /> Nouveau · à vérifier</span>}
                   {g.active && missing.has(g.id) && <span className="badge bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300"><AlertCircle className="size-3" /> Planning {periodLabel(next).split(" ")[0]} manquant</span>}
                   {g.icalFeeds?.length > 0 && (
                     <span className={`badge ${g.icalLastError ? "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300" : "bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300"}`}>
