@@ -18,7 +18,38 @@ export function initPointeuse(): Firestore | null {
   const raw = process.env.POINTEUSE_SERVICE_ACCOUNT;
   if (process.env.POINTEUSE_EMULATOR) return getFirestore(initializeApp({ projectId: "demo-pointeuse" }, "pointeuse"));
   if (!raw) return null;
-  return getFirestore(initializeApp({ credential: cert(parseServiceAccount(raw)) }, "pointeuse"));
+  const account = parseServiceAccount(raw);
+  try {
+    return getFirestore(initializeApp({ credential: cert(account) }, "pointeuse"));
+  } catch (e) {
+    throw new Error(`Clé POINTEUSE_SERVICE_ACCOUNT abîmée (${describeKeyShape(account.private_key)}). Recollez le fichier .json depuis un ordinateur. Détail : ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+/**
+ * Reconstruit une clé privée PEM abîmée : « \n » écrits en texte ou réels, espaces, caractères parasites,
+ * « n » orphelins en fin de ligne (barre oblique perdue au copier-coller). Les clés Google font 64 caractères par ligne.
+ */
+export function repairPrivateKey(key: string): string {
+  const m = key.match(/-----BEGIN ([A-Z ]+)-----([\s\S]*?)-----END \1-----/);
+  if (!m) return key.replace(/\\n/g, "\n");
+  const label = m[1];
+  // Lignes telles que collées (séparées par de vrais retours à la ligne ou par « \n » écrits en texte)
+  const lines = m[2].replace(/\\n/g, "\n").split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+    // « n » orphelin en fin de ligne de 65 caractères : reste d'un « \n » dont la barre a disparu
+    .map((l, i, all) => (l.length === 65 && l.endsWith("n") && i < all.length - 1 ? l.slice(0, 64) : l));
+  const body = lines.join("").replace(/[^A-Za-z0-9+/=]/g, "");
+  const wrapped = body.match(/.{1,64}/g)?.join("\n") ?? "";
+  return `-----BEGIN ${label}-----\n${wrapped}\n-----END ${label}-----\n`;
+}
+
+/** Forme de la clé (sans son contenu) pour diagnostiquer un collage abîmé. */
+export function describeKeyShape(key: string): string {
+  const m = key.match(/-----BEGIN [A-Z ]+-----([\s\S]*?)-----END/);
+  if (!m) return "en-têtes BEGIN/END introuvables";
+  const lines = m[1].split(/\r?\n/).filter(Boolean);
+  const odd = m[1].replace(/[A-Za-z0-9+/=\s]/g, "");
+  return `${lines.length} lignes, longueurs ${[...new Set(lines.map((l) => l.length))].join("/")}, ${m[1].replace(/\s/g, "").length} caractères, caractères inattendus : ${odd.length}`;
 }
 
 /**
@@ -54,7 +85,7 @@ export function parseServiceAccount(raw: string): Record<string, string> {
       throw new Error(`POINTEUSE_SERVICE_ACCOUNT illisible : recollez tout le contenu du fichier .json, de { à } (${e instanceof Error ? e.message : e})`);
     }
   }
-  if (typeof data.private_key === "string") data.private_key = data.private_key.replace(/\\n/g, "\n");
+  if (typeof data.private_key === "string") data.private_key = repairPrivateKey(data.private_key);
   if (data.type !== "service_account" || !data.private_key || !data.client_email) {
     throw new Error("POINTEUSE_SERVICE_ACCOUNT : ce n'est pas une clé de compte de service Firebase complète (type, private_key, client_email).");
   }
