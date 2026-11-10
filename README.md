@@ -108,3 +108,16 @@ Tester les automatisations sur l'émulateur :
 ```bash
 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run automation
 ```
+
+---
+
+## 🚗 Bonus : Permis BE — entraînement à la théorie du permis B
+
+Application autonome dans `public/permis/` (HTML/CSS/JS sans dépendance, hors ligne, installable).
+Publiée avec le site : **https://jpdev-create.github.io/les-petites-fees/permis/**
+
+- 180 questions expliquées (piège, référence), 70 panneaux belges dessinés en SVG, schémas de carrefour
+- Examen blanc 50 questions au barème réel (−1 / −5 pour faute grave, 41/50), chrono optionnel
+- Révision espacée (Leitner) des erreurs, bouton « je doute », carnet d'erreurs, coach (points faibles, panneaux confondus)
+- Fiches de cours, nouveautés 2026 et Code de la voie publique (1er juin 2027), questions filtrées par Région
+- Progression stockée dans le navigateur (export / import JSON)
