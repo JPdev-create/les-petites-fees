@@ -141,19 +141,6 @@ service cloud.firestore {
     }
 
     // Lisible par tous : coordonnées légales de l'entreprise (page « Mentions légales »)
-    // Permis BE (appli d'entraînement au permis, dossier /permis) : données personnelles de chaque
-    // utilisateur connecté (Google ou lien e-mail). Personne d'autre ne peut les lire ni les modifier.
-    function permisSelf(uid) { return request.auth != null && request.auth.uid == uid; }
-    match /permis_users/{uid} {
-      allow read, delete: if permisSelf(uid);
-      allow create, update: if permisSelf(uid) && request.resource.data.keys().size() <= 40;
-      match /{kind}/{id} {
-        allow read, delete: if permisSelf(uid) && kind in ['exams', 'sessions'];
-        allow create, update: if permisSelf(uid) && kind in ['exams', 'sessions']
-          && id.size() <= 40 && request.resource.data.items is list && request.resource.data.items.size() <= 120;
-      }
-    }
-
     match /settings/{id} {
       allow read: if true;
       allow write: if isAdmin();
