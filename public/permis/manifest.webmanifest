@@ -1,0 +1,12 @@
+{
+  "name": "Permis BE — Théorie permis B",
+  "short_name": "Permis BE",
+  "description": "Entraînement à l'examen théorique du permis B en Belgique.",
+  "lang": "fr-BE",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#1d4f9c",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
