@@ -125,6 +125,32 @@
   add("F103", "F103", "Zone piétonne", "indication", "Zone réservée aux piétons ; seuls certains véhicules autorisés peuvent y entrer, au pas.", () => square(`<rect x="13" y="13" width="74" height="74" rx="4" fill="${WH}"/>${at(G.ped(BLK), 38, 50, 0.5)}${at(G.ped(BLK), 64, 54, 0.42)}`));
   add("F111", "F111", "Rue cyclable", "indication", "Les cyclistes peuvent utiliser toute la largeur de leur côté ; les véhicules à moteur ne peuvent PAS les dépasser ; 30 km/h max.", () => square(`<rect x="13" y="13" width="74" height="74" rx="4" fill="${WH}"/>${at(G.bike(RED), 50, 34, 0.48)}${at(G.carSide(BLK), 50, 70, 0.4)}`));
 
+  /* ---------- Panneaux supplémentaires ---------- */
+  const rocks = (c = BLK) => `<path d="M70 6 L94 6 L94 94 L70 94 Z" fill="${c}" opacity=".85"/><circle cx="50" cy="30" r="9" fill="${c}"/><circle cx="36" cy="56" r="11" fill="${c}"/><circle cx="54" cy="84" r="9" fill="${c}"/><path d="M6 94 H66" stroke="${c}" stroke-width="5"/>`;
+  const gravel = (c = BLK) => `${at(G.carSide(c), 50, 34, 0.7)}<g fill="${c}"><circle cx="20" cy="74" r="5"/><circle cx="36" cy="84" r="4"/><circle cx="54" cy="72" r="5"/><circle cx="72" cy="86" r="4"/><circle cx="84" cy="72" r="5"/></g>`;
+  const wind = (c = BLK) => `<path d="M14 10 V94" stroke="${c}" stroke-width="7"/><path d="M18 18 L86 30 L86 50 L18 58 Z" fill="${RED}" stroke="${c}" stroke-width="3"/><path d="M40 22 V54 M62 26 V50" stroke="${WH}" stroke-width="6"/>`;
+  const txt = (t, size = 30, c = BLK) => `<text x="50" y="52" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="${size}" text-anchor="middle" dominant-baseline="central" fill="${c}">${t}</text>`;
+  const bikeArrow = (dir) => `${at(G.bike(BLK), 46, 40, 0.34)}${dir === "right" ? `<path d="M38 58 H60 V52 L72 62 L60 72 V66 H38 Z" fill="#f08a00"/>` : `<path d="M44 74 V56 H38 L50 44 L62 56 H56 V74 Z" fill="#f08a00" transform="translate(0 4)"/>`}`;
+
+  add("A17", "A17", "Projection de gravillons", "danger", "Gravillons sur la chaussée : ralentir pour éviter les projections et les dérapages.", () => tri(gravel()));
+  add("A19", "A19", "Chute de pierres", "danger", "Risque de pierres sur la route (paroi rocheuse) : prudence, surtout après la pluie ou le gel.", () => tri(rocks()));
+  add("A37", "A37", "Vent latéral", "danger", "Rafales possibles (viaduc, sortie de forêt) : tenir fermement le volant, attention en dépassant un camion.", () => tri(wind()));
+  add("A49", "A49", "Traversée de tram", "danger", "Annonce un endroit où un tram traverse la chaussée.", () => tri(G.tram()));
+  add("B22", "B22", "Cyclistes : tourner à droite au feu rouge", "priorite", "Placé sous un feu : les cyclistes (et cyclomoteurs A, EDP selon le cas) peuvent tourner à droite au rouge en cédant le passage. Ne concerne pas les voitures.", () => triInv(bikeArrow("right")));
+  add("B23", "B23", "Cyclistes : aller tout droit au feu rouge", "priorite", "Placé sous un feu : les cyclistes peuvent continuer tout droit au rouge en cédant le passage. Ne concerne pas les voitures.", () => triInv(bikeArrow("up")));
+  add("C5", "C5", "Accès interdit aux véhicules à moteur (sauf motos solo)", "interdiction", "Interdit aux véhicules automobiles à plus de deux roues et aux motos avec side-car.", () => circRed(at(G.carSide(BLK), 50, 50, 0.92)));
+  add("C21", "C21", "Masse maximale autorisée", "interdiction", "Interdit aux véhicules dont la masse en charge dépasse la valeur indiquée (ici 3,5 t).", () => circRed(txt("3,5t", 34)));
+  add("C23", "C23", "Accès interdit aux véhicules de transport de marchandises", "interdiction", "Interdit aux camions et camionnettes affectés au transport de choses (souvent avec un panneau additionnel de masse).", () => circRed(at(G.truck(BLK), 50, 52, 0.92)));
+  add("C27", "C27", "Largeur maximale", "interdiction", "Interdit aux véhicules (chargement compris) plus larges que la valeur indiquée.", () => circRed(`${txt("2,3m", 28)}<path d="M8 50 L20 42 V58 Z M92 50 L80 42 V58 Z" fill="${BLK}"/>`));
+  add("C29", "C29", "Hauteur maximale", "interdiction", "Interdit aux véhicules (chargement compris) plus hauts que la valeur indiquée.", () => circRed(`${txt("3,5m", 28)}<path d="M50 6 L42 18 H58 Z M50 94 L42 82 H58 Z" fill="${BLK}"/>`));
+  add("C39", "C39", "Dépassement interdit aux camions", "interdiction", "Interdit aux véhicules de transport de choses de plus de 3,5 t de dépasser un véhicule à plus de deux roues.", () => circRed(`${at(G.carTop(BLK), 66, 50, 0.9)}${at(`<rect x="30" y="4" width="40" height="92" rx="4" fill="${RED}"/>`, 34, 50, 0.9)}`));
+  add("C43_120", "C43", "Vitesse maximale 120 km/h", "interdiction", "Interdit de dépasser 120 km/h.", () => circRed(G.num(120, BLK, 40)));
+  add("D11", "D11", "Chemin obligatoire pour piétons", "obligation", "Partie de la voie réservée et obligatoire pour les piétons.", () => circBlue(G.ped(WH)));
+  add("F12b", "F12b", "Fin de zone résidentielle / de rencontre", "indication", "Fin de la zone : en la quittant, vous cédez le passage à tous les autres usagers.", () => square(`<rect x="13" y="13" width="74" height="74" rx="4" fill="${WH}"/>${at(G.house(BLUE), 34, 44, 0.6)}${at(G.ped(BLUE), 62, 46, 0.42)}${at(G.carSide(BLUE), 56, 76, 0.32)}<line x1="14" y1="86" x2="86" y2="14" stroke="${RED}" stroke-width="7"/>`));
+  add("F17", "F17", "Bande réservée aux bus", "indication", "Bande réservée aux bus (et aux usagers éventuellement indiqués). Les autres véhicules ne peuvent pas y circuler.", () => square(`${txt("BUS", 30, WH)}<path d="M50 70 V90" stroke="${WH}" stroke-width="5"/><path d="M30 14 V86 M70 14 V86" stroke="${WH}" stroke-width="3" stroke-dasharray="8 6"/>`));
+  add("F104", "F104", "Fin de zone piétonne", "indication", "Fin de la zone piétonne.", () => square(`<rect x="13" y="13" width="74" height="74" rx="4" fill="${WH}"/>${at(G.ped(BLK), 38, 50, 0.5)}${at(G.ped(BLK), 64, 54, 0.42)}<line x1="14" y1="86" x2="86" y2="14" stroke="${RED}" stroke-width="7"/>`));
+  add("F113", "F113", "Fin de rue cyclable", "indication", "Fin de la rue cyclable : les règles habituelles (dépassement possible, vitesse de l'endroit) s'appliquent de nouveau.", () => square(`<rect x="13" y="13" width="74" height="74" rx="4" fill="${WH}"/>${at(G.bike(RED), 50, 34, 0.48)}${at(G.carSide(BLK), 50, 70, 0.4)}<line x1="14" y1="86" x2="86" y2="14" stroke="${RED}" stroke-width="7"/>`));
+
   window.SIGNS = S;
   window.signSVG = (key) => (S[key] ? S[key].svg() : "");
   window.SIGN_CATS = {

@@ -1,10 +1,14 @@
 /* Permis BE — service worker : l'application fonctionne entièrement hors ligne.
  * Portée limitée au dossier /permis/ (prioritaire sur le service worker du site principal). */
-const VERSION = "permisbe-v1";
-const FILES = ["./", "index.html", "css/app.css", "js/signs.js", "js/questions.js", "js/lessons.js", "js/app.js", "manifest.webmanifest", "icon.svg"];
+const VERSION = "permisbe-v2";
+const FILES = [
+  "./", "index.html", "css/app.css", "manifest.webmanifest", "icon.svg",
+  "js/firebase-config.js", "js/signs.js", "js/questions.js", "js/questions2.js", "js/gen.js", "js/rules.js", "js/lessons.js", "js/app.js", "js/cloud.js",
+  "vendor/firebase-app.js", "vendor/firebase-auth.js", "vendor/firebase-firestore.js", "vendor/firebase-ai.js",
+];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => Promise.allSettled(FILES.map((f) => c.add(f)))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {
@@ -16,8 +20,10 @@ self.addEventListener("activate", (e) => {
 });
 
 // Réseau d'abord (pour recevoir les mises à jour des questions), cache en secours.
+// Les appels à Firebase (autres domaines) ne sont jamais interceptés.
 self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET" || new URL(e.request.url).origin !== self.location.origin) return;
+  const url = new URL(e.request.url);
+  if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {
