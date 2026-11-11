@@ -12,12 +12,12 @@
   const MASTER_BOX = 3;
   const AI_DAILY = 60;
   const REGIONS = { W: "Wallonie", B: "Bruxelles", F: "Flandre" };
-  const Q = window.QUESTIONS, TH = window.THEMES, L = window.LESSONS, SG = window.SIGNS, RB = window.RULEBOOK, GEN = window.GEN;
+  const Q = window.QUESTIONS, TH = window.THEMES, L = window.LESSONS, SG = window.SIGNS, RB = window.RULEBOOK, GEN = window.GEN, TPR = window.TPR;
   const QBY = Object.fromEntries(Q.map((q) => [q.id, q]));
   const GEN_THEMES = { priorite: ["prio", "prio", "prio"], panneaux: ["sign", "signpick"], vitesse: ["speed", "brake"], conduite: ["react", "twosec"], permis: ["score"] };
 
   /* ================================================================== état */
-  const defaults = () => ({ region: null, timer: 0, goal: 20, look: "auto", sound: true, genShare: 25, q: {}, signs: {}, gen: {}, conf: {}, exams: [], sessions: [], days: {}, hist: [], saved: null, ai: { day: "", n: 0 }, updatedAt: 0 });
+  const defaults = () => ({ region: null, timer: 0, goal: 20, look: "auto", sound: true, genShare: 25, q: {}, signs: {}, gen: {}, conf: {}, exams: [], sessions: [], days: {}, hist: [], saved: null, ai: { day: "", n: 0 }, tpr: {}, badges: {}, daily: {}, updatedAt: 0 });
   let S = load();
   function load() {
     try { const raw = localStorage.getItem(KEY); if (raw) return Object.assign(defaults(), JSON.parse(raw)); } catch (e) { /* stockage indisponible */ }
@@ -94,6 +94,46 @@
     return { v, label: v < 35 ? "Débutant·e" : v < 60 ? "En progrès" : v < 82 ? "Presque prêt·e" : "Prêt·e pour l'examen" };
   }
 
+  /* ---------- trophées ---------- */
+  const totalAnswers = () => Object.values(S.days).reduce((a, n) => a + n, 0);
+  const tprTotal = () => Object.values(S.tpr).reduce((a, r) => a + (r.best || 0), 0);
+  const BADGES = [
+    { id: "first", icon: "🚀", nom: "Premiers pas", d: "Répondre à 10 questions", ok: () => totalAnswers() >= 10 },
+    { id: "q100", icon: "💯", nom: "Centurion", d: "Répondre à 100 questions", ok: () => totalAnswers() >= 100 },
+    { id: "q500", icon: "🏋️", nom: "Assidu·e", d: "Répondre à 500 questions", ok: () => totalAnswers() >= 500 },
+    { id: "q1000", icon: "🏅", nom: "Marathon", d: "Répondre à 1 000 questions", ok: () => totalAnswers() >= 1000 },
+    { id: "streak3", icon: "🔥", nom: "Lancé·e", d: "S'entraîner 3 jours d'affilée", ok: () => streak() >= 3 },
+    { id: "streak7", icon: "📆", nom: "Une semaine", d: "S'entraîner 7 jours d'affilée", ok: () => streak() >= 7 },
+    { id: "exam1", icon: "📝", nom: "Premier examen", d: "Terminer un examen blanc", ok: () => S.exams.length >= 1 },
+    { id: "pass1", icon: "🎓", nom: "Réussi !", d: "Réussir un examen blanc (41/50)", ok: () => S.exams.some((e) => e.pass) },
+    { id: "pass3", icon: "🏆", nom: "Régulier·e", d: "Réussir 3 examens blancs d'affilée", ok: () => S.exams.length >= 3 && S.exams.slice(-3).every((e) => e.pass) },
+    { id: "clean", icon: "💎", nom: "Zéro faute grave", d: "Réussir un examen sans faute grave", ok: () => S.exams.some((e) => e.pass && e.grave === 0) },
+    { id: "s48", icon: "🌟", nom: "Presque parfait", d: "Obtenir 48/50 ou plus", ok: () => S.exams.some((e) => e.score >= 48) },
+    { id: "m100", icon: "🧠", nom: "100 maîtrisées", d: "Maîtriser 100 questions", ok: () => themeStats().mastered >= 100 },
+    { id: "mall", icon: "👑", nom: "Encyclopédie", d: "Maîtriser 90 % des questions", ok: () => { const t = themeStats(); return t.mastered >= 0.9 * t.total; } },
+    { id: "signs", icon: "🛑", nom: "Expert·e panneaux", d: "Maîtriser 40 panneaux", ok: () => Object.values(S.signs).filter((r) => r.box >= MASTER_BOX).length >= 40 },
+    { id: "prio", icon: "🔀", nom: "Roi du carrefour", d: "Réussir 30 carrefours générés", ok: () => (S.gen.prio || {}).ok >= 30 },
+    { id: "tpr", icon: "👀", nom: "Œil de lynx", d: "40 points au total en perception des risques", ok: () => tprTotal() >= 40 },
+    { id: "tpr5", icon: "⚡", nom: "Réflexe parfait", d: "Obtenir 5/5 à une scène de perception", ok: () => Object.values(S.tpr).some((r) => r.best >= 5) },
+    { id: "daily", icon: "📅", nom: "Défi relevé", d: "Terminer un défi du jour", ok: () => Object.keys(S.daily).length >= 1 },
+    { id: "daily7", icon: "🗓️", nom: "Défis en série", d: "Terminer 7 défis du jour", ok: () => Object.keys(S.daily).length >= 7 },
+    { id: "ai", icon: "🤖", nom: "Curieux·se", d: "Poser une question au prof IA", ok: () => S.ai.n > 0 || !!S.badges.ai },
+  ];
+  function checkBadges() {
+    const fresh = BADGES.filter((b) => !S.badges[b.id] && b.ok());
+    fresh.forEach((b) => (S.badges[b.id] = now()));
+    if (fresh.length) { save(); fresh.forEach((b, i) => setTimeout(() => toast(`${b.icon} Trophée débloqué : ${b.nom}`), 600 + i * 1400)); }
+  }
+
+  /* ---------- défi du jour : mêmes 10 questions pour tout le monde ce jour-là ---------- */
+  function seeded(seed) { let x = 0; for (const c of seed) x = (x * 31 + c.charCodeAt(0)) >>> 0; return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+  function dailyIds() {
+    const rnd = seeded("permis-" + today());
+    const p = pool().slice().sort((a, b) => (a.id < b.id ? -1 : 1));
+    for (let i = p.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+    return p.slice(0, 10).map((q) => q.id);
+  }
+
   function insights() {
     const out = [];
     const ts = Object.keys(TH).map((t) => ({ t, ...themeStats(t) })).filter((x) => x.answers >= 6).sort((a, b) => a.acc - b.acc);
@@ -131,6 +171,9 @@
       Object.entries(remote.gen || {}).forEach(([k, g]) => { const l = S.gen[k]; if (!l || g.ok + g.ko > l.ok + l.ko) S.gen[k] = g; });
       Object.entries(remote.conf || {}).forEach(([k, v]) => (S.conf[k] = Math.max(S.conf[k] || 0, v)));
       Object.entries(remote.days || {}).forEach(([k, v]) => (S.days[k] = Math.max(S.days[k] || 0, v)));
+      Object.entries(remote.tpr || {}).forEach(([k, v]) => { const l = S.tpr[k]; S.tpr[k] = !l ? v : { best: Math.max(l.best, v.best), n: Math.max(l.n, v.n), last: Math.max(l.last || 0, v.last || 0) }; });
+      Object.entries(remote.badges || {}).forEach(([k, v]) => { if (!S.badges[k] || v < S.badges[k]) S.badges[k] = v; });
+      Object.entries(remote.daily || {}).forEach(([k, v]) => { if (S.daily[k] == null || v > S.daily[k]) S.daily[k] = v; });
       if ((remote.hist || []).length > S.hist.length) S.hist = remote.hist;
       if ((remote.updatedAt || 0) > (S.updatedAt || 0)) ["region", "timer", "goal", "look", "sound", "genShare"].forEach((k) => { if (remote[k] != null) S[k] = remote[k]; });
       if (!S.region && remote.region) S.region = remote.region;
@@ -239,18 +282,21 @@
   function go(h) { if (location.hash === h) render(); else location.hash = h; }
   window.addEventListener("hashchange", render);
 
+  let tprStop = null;
   function render() {
     clearInterval(timerId);
+    if (tprStop) { tprStop(); tprStop = null; }
     const parts = location.hash.split("/");
     const route = parts[1] || "", arg = decodeURIComponent(parts.slice(2).join("/") || "");
-    const views = { "": vHome, train: vTrain, play: vPlay, result: vResult, exam: vExamIntro, regles: vRules, fiche: vLesson, signs: vSigns, stats: vStats, errors: vErrors, settings: vSettings, historique: vHistory, detail: vDetail, compte: vAccount };
+    const views = { "": vHome, train: vTrain, play: vPlay, result: vResult, exam: vExamIntro, regles: vRules, fiche: vLesson, signs: vSigns, stats: vStats, errors: vErrors, settings: vSettings, historique: vHistory, detail: vDetail, compte: vAccount, tpr: vTpr, trophees: vBadges };
     if (!S.region && !["settings", "compte"].includes(route)) { document.body.dataset.route = "onboard"; app.innerHTML = vOnboard(); return; }
     document.body.dataset.route = route || "home";
     (views[route] || vHome)(arg);
-    const tabOf = { fiche: "regles", detail: "stats", historique: "stats", errors: "train" };
+    const tabOf = { fiche: "regles", detail: "stats", historique: "stats", errors: "train", tpr: "train", trophees: "stats" };
     const cur = tabOf[route] || route;
     nav.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.getAttribute("href") === `#/${cur}` || (cur === "" && a.getAttribute("href") === "#/")));
     if (!(route === "play" && SES && SES.state === "done")) window.scrollTo(0, 0);
+    if (route !== "play") checkBadges();
     enhance();
     updateSyncBadge();
   }
@@ -289,10 +335,12 @@
     </header>
     ${sv ? `<button class="resume-card" data-act="resume"><span class="ai">⏯️</span><span><b>Reprendre : ${esc(sv.title)}</b><small>Question ${sv.i + 1}/${sv.items.length} · commencée à ${timeFR(sv.start)}</small></span><span class="x" data-act="drop" title="Abandonner">✕</span></button>` : ""}
     ${!u ? `<a class="account-nudge" href="#/compte">☁️ <span><b>Crée ton compte gratuit</b> : tes sessions, examens et erreurs sauvegardés sur tous tes appareils + le prof IA.</span></a>` : ""}
+    ${dailyCard()}
     <div class="actions">
       <button class="action primary" data-act="mix"><span class="ai">✨</span><span><b>Continuer</b><small>Mix intelligent : erreurs à revoir, nouvelles questions, situations générées</small></span></button>
       <button class="action" data-act="go:#/exam"><span class="ai">📝</span><span><b>Examen blanc</b><small>50 questions, barème officiel (−1 / −5), correction détaillée</small></span></button>
       <button class="action ${due ? "warn" : ""}" data-act="review"><span class="ai">🔁</span><span><b>Révision</b><small>${due ? `${plural(due, "question")} à revoir maintenant` : "Rien à revoir pour l'instant 👌"}</small></span></button>
+      <button class="action" data-act="go:#/tpr"><span class="ai">👀</span><span><b>Perception des risques</b><small>${TPR.SCENES.length} scènes animées, comme le TPR · ${tprTotal()}/${TPR.SCENES.length * 5} points</small></span></button>
     </div>
     ${ins.length ? `<section><h2>Ton coach</h2>${ins.map((i) => `<div class="insight"><span class="ii">${i.icon}</span><div><p>${i.txt}</p>${i.html || ""}${i.act ? `<button class="link" data-act="${i.act}">${i.cta} →</button>` : ""}</div></div>`).join("")}</section>` : ""}
     <section><div class="sec-h"><h2>Par thème</h2><a href="#/train" class="link">Tout voir</a></div>
@@ -302,6 +350,13 @@
       <a href="#/regles" class="news-card"><b>📚 Livre des règles</b><span>${RB.length} chapitres, toute la matière, avec recherche</span></a>
       <a href="#/fiche/nouveautes" class="news-card"><b>🆕 Nouveautés 2026</b><span>Amendes +10 %, retrait de 12 h pour l'alcool…</span></a>
     </section>`;
+  }
+
+  function dailyCard() {
+    const done = S.daily[today()];
+    let days = 0; const d = new Date();
+    while (S.daily[today(d)] != null) { days++; d.setDate(d.getDate() - 1); }
+    return `<button class="daily ${done != null ? "done" : ""}" data-act="daily"><span class="ai">📅</span><span><b>Défi du jour</b><small>${done != null ? `Fait : ${done}/10 aujourd'hui · le refaire` : "10 questions, les mêmes pour tout le monde aujourd'hui"}${days > 1 ? ` · ${days} jours de suite` : ""}</small></span><span class="go">${done != null ? "✓" : "→"}</span></button>`;
   }
 
   function vTrain() {
@@ -317,6 +372,7 @@
       <button class="action" data-act="graves"><span class="ai">⚠️</span><span><b>Fautes graves</b><small>Les ${graves} questions qui coûtent 5 points</small></span></button>
       <button class="action" data-act="go:#/errors"><span class="ai">📓</span><span><b>Carnet d'erreurs</b><small>${plural(errs, "question")} déjà ratée${errs > 1 ? "s" : ""}</small></span></button>
     </div>
+    <a class="action" href="#/tpr" style="margin-top:10px;text-decoration:none;color:inherit"><span class="ai">👀</span><span><b>Perception des risques</b><small>Scènes animées : touche « Danger » au bon moment (comme le TPR wallon)</small></span></a>
     <h2>Situations générées <small class="muted">· toujours nouvelles</small></h2>
     <div class="gen-grid">${Object.entries(GEN.KINDS).map(([k, g]) => { const s = S.gen[k]; return `<button class="gen-card" data-act="gen:${k}"><b>${g.nom}</b><small>${s ? `${pct(s.ok, s.ok + s.ko)} % · ${s.ok + s.ko} faites` : "Pas encore essayé"}</small></button>`; }).join("")}</div>
     <h2>Par thème <small class="muted">· ${st.mastered}/${st.total} maîtrisées</small></h2>
@@ -508,7 +564,7 @@
   function finish() {
     const dur = Math.round((now() - SES.start) / 1000);
     SES.dur = dur;
-    if (SES.mode === "signs") { go("#/result"); return; }
+    if (SES.mode === "signs") { checkBadges(); go("#/result"); return; }
     const first = SES.log.filter((l) => !l.retry);
     let rec;
     if (SES.mode === "exam") {
@@ -525,8 +581,10 @@
       if (S.sessions.length > 150) S.sessions = S.sessions.slice(-150);
     }
     SES.rec = rec;
+    if (SES.daily && rec.kind === "session") S.daily[today()] = Math.max(S.daily[today()] || 0, rec.ok);
     S.saved = null;
     save();
+    checkBadges();
     if (cloudUser()) window.Cloud.saveItem(rec.kind === "exam" ? "exams" : "sessions", rec).catch((e) => console.warn(e));
     go(rec.kind === "exam" ? `#/detail/${rec.id}` : "#/result");
     if (rec.kind === "exam" && rec.pass) setTimeout(confetti, 300);
@@ -718,7 +776,7 @@
     const studyMin = Math.round([...S.exams, ...S.sessions].reduce((a, x) => a + (x.dur || 0), 0) / 60);
     app.innerHTML = `<h1 class="page-h">Progression</h1>
     <div class="kpis"><div class="kpi card"><b>${totalAns}</b><span>réponses</span></div><div class="kpi card"><b>${st.answers ? st.acc + " %" : "—"}</b><span>réussite</span></div><div class="kpi card"><b>${st.mastered}/${st.total}</b><span>maîtrisées</span></div><div class="kpi card"><b>${passRate == null ? "—" : passRate + " %"}</b><span>examens réussis</span></div><div class="kpi card"><b>${studyMin} min</b><span>d'entraînement</span></div><div class="kpi card"><b>${S.exams.length + S.sessions.length}</b><span>sessions</span></div></div>
-    <a class="btn full" href="#/historique" style="margin-top:12px">🗂️ Historique complet des sessions et examens</a>
+    <div class="stack-row" style="margin-top:12px"><a class="btn grow" href="#/historique">🗂️ Historique</a><a class="btn grow" href="#/trophees">🏆 Trophées ${Object.keys(S.badges).length}/${BADGES.length}</a></div>
     <h2>Activité (28 jours)</h2><div class="card"><div class="heat">${days.map((v) => `<i style="opacity:${v ? 0.25 + (0.75 * v) / maxD : 0.08}" title="${v} réponses"></i>`).join("")}</div><p class="tiny muted">🔥 Série actuelle : ${plural(streak(), "jour")}</p></div>
     ${ex.length ? `<h2>Examens blancs</h2><div class="card"><div class="exam-chart">${ex.map((e) => `<a class="col ${e.pass ? "ok" : "ko"}" href="#/detail/${e.id}" title="${e.score}/50"><i style="height:${Math.max(3, (e.score / 50) * 100)}%"></i><small>${e.score}</small></a>`).join("")}<div class="pass-line" style="bottom:${(41 / 50) * 100}%"><span>41</span></div></div></div>` : ""}
     <h2>Par thème</h2><div class="list">${Object.entries(TH).map(([k, t]) => { const s = themeStats(k); if (!s.total) return ""; return `<button class="row" data-act="train:${k}"><span class="ti">${t.icon}</span><span class="grow"><b>${t.nom}</b>${bar(pct(s.mastered, s.total))}<small>${s.mastered}/${s.total} maîtrisées · ${s.seen}/${s.total} vues${s.answers ? ` · ${s.acc} %` : ""}</small></span></button>`; }).join("")}</div>
@@ -735,12 +793,47 @@
     <div class="list" style="margin-top:12px">${ids.map((id) => { const q = QBY[id], r = S.q[id]; const st = r.box >= MASTER_BOX ? ["ok", "Corrigée"] : r.box > 0 ? ["mid", "En cours"] : ["ko", "À revoir"]; return `<details class="err"><summary><span class="badge ${st[0]}">${st[1]}</span> ${q.g ? "⚠️ " : ""}${esc(q.q)} <small class="muted">· ratée ${r.ko}×</small></summary>${media(q)}<p><span class="badge ok">Réponse</span> ${esc(q.o[q.a])}</p><p class="expl">${esc(q.e)}</p>${q.p ? `<p class="trap"><b>Le piège :</b> ${esc(q.p)}</p>` : ""}<button class="link" data-act="tutorq:${encodeURIComponent(JSON.stringify({ id }))}">🤖 Demander au prof IA</button></details>`; }).join("")}</div>` : `<div class="empty">🎉<p>Aucune erreur enregistrée pour l'instant.<br>Lance une session pour commencer !</p><button class="btn primary" data-act="mix">S'entraîner</button></div>`}`;
   }
 
+  /* ================================================================== perception des risques */
+  function vTpr(id) {
+    if (!id) {
+      app.innerHTML = `<a class="back" href="#/train">← S'entraîner</a><h1 class="page-h">Perception des risques</h1>
+      <p class="muted">Ta voiture roule ; touche <b>« Danger »</b> dès qu'un danger se concrétise (pas avant, pas en rafale). Plus tu réagis tôt dans la fenêtre de danger, plus tu marques de points (5 max). C'est le principe du test de perception des risques (TPR), obligatoire en Wallonie.</p>
+      <div class="kpis"><div class="kpi card"><b>${tprTotal()}/${TPR.SCENES.length * 5}</b><span>meilleur total</span></div><div class="kpi card"><b>${Object.keys(S.tpr).length}/${TPR.SCENES.length}</b><span>scènes faites</span></div></div>
+      <div class="list" style="margin-top:12px">${TPR.SCENES.map((sc, i) => { const r = S.tpr[sc.id]; return `<a class="row" href="#/tpr/${sc.id}"><span class="qn">${i + 1}</span><span class="grow"><b>${esc(sc.titre)}</b><small>${esc(sc.zone)}</small></span>${r ? `<span class="stars">${"★".repeat(r.best)}${"☆".repeat(5 - r.best)}</span>` : `<span class="badge mid">Nouveau</span>`}</a>`; }).join("")}</div>`;
+      return;
+    }
+    const sc = TPR.SCENES.find((x) => x.id === id);
+    if (!sc) { go("#/tpr"); return; }
+    const idx = TPR.SCENES.indexOf(sc);
+    app.innerHTML = `<a class="back" href="#/tpr">← Scènes</a><h1 class="page-h">${idx + 1}. ${esc(sc.titre)}</h1><div id="tprhost"><div class="card tpr-intro"><p>${esc(sc.zone)}</p><p class="muted">Tiens-toi prêt·e : la scène dure ${Math.round(sc.dur)} secondes.</p><button class="btn primary big full" id="tgo">▶ Démarrer</button></div></div>`;
+    $("#tgo").addEventListener("click", () => {
+      tprStop = TPR.play($("#tprhost"), sc, (res, clicks) => {
+        tprStop = null;
+        const r = S.tpr[sc.id] || { best: 0, n: 0 };
+        r.best = Math.max(r.best, res.pts); r.n++; r.last = now();
+        S.tpr[sc.id] = r; save(); checkBadges();
+        const next = TPR.SCENES[idx + 1];
+        $("#tprhost").innerHTML = `<div class="result ${res.pts >= 3 ? "pass" : res.pts ? "" : "fail"}"><div class="big-score">${res.pts}<small>/5</small></div><p class="stars big">${"★".repeat(res.pts)}${"☆".repeat(5 - res.pts)}</p><p><b>${esc(res.why)}</b></p>
+          <div class="tpr-tl"><span class="win" style="left:${(sc.win[0] / sc.dur) * 100}%;width:${((sc.win[1] - sc.win[0]) / sc.dur) * 100}%"></span>${clicks.map((c) => `<b style="left:${Math.min(100, (c / sc.dur) * 100)}%"></b>`).join("")}</div>
+          <p class="tiny muted">Zone jaune : fenêtre de danger (${sc.win[0].toFixed(1).replace(".", ",")} s → ${sc.win[1].toFixed(1).replace(".", ",")} s). Traits : tes clics.</p></div>
+          <div class="card"><h3 style="margin-top:0">Ce qu'il fallait voir</h3><p>${esc(sc.why)}</p></div>
+          <div class="stack"><button class="btn big full" data-act="go:#/tpr/${sc.id}">↻ Rejouer</button>${next ? `<a class="btn primary big full" href="#/tpr/${next.id}">Scène suivante →</a>` : `<a class="btn primary big full" href="#/tpr">Voir mes scores</a>`}</div>`;
+      });
+    });
+  }
+
+  function vBadges() {
+    const got = Object.keys(S.badges).length;
+    app.innerHTML = `<a class="back" href="#/stats">← Progrès</a><h1 class="page-h">Trophées <small class="muted">${got}/${BADGES.length}</small></h1>
+      <div class="badge-grid">${BADGES.map((b) => { const d = S.badges[b.id]; return `<div class="trophy ${d ? "on" : ""}"><span class="ti">${b.icon}</span><b>${esc(b.nom)}</b><small>${esc(b.d)}</small>${d ? `<em>${dateFR(d)}</em>` : ""}</div>`; }).join("")}</div>`;
+  }
+
   /* ================================================================== compte */
   function vAccount() {
     const u = cloudUser();
     const ready = !!window.Cloud;
     app.innerHTML = `<a class="back" href="#/">← Accueil</a><h1 class="page-h">Mon compte</h1>
-    ${!ready ? `<div class="card"><p>Connexion au service en cours… Si ce message reste affiché, vérifie ta connexion internet. L'appli fonctionne quand même hors ligne, ta progression est gardée sur cet appareil.</p></div>` : u ? `
+    ${window.PERMIS_NO_CLOUD ? `<div class="card"><p>Dans cet aperçu, le compte et le prof IA sont désactivés. Ta progression est gardée dans ce navigateur.</p><p>Pour te connecter, synchroniser tes appareils et parler au prof IA, ouvre la version en ligne :</p><p><b>jpdev-create.github.io/les-petites-fees/permis/</b></p></div>` : !ready ? `<div class="card"><p>Connexion au service en cours… Si ce message reste affiché, vérifie ta connexion internet. L'appli fonctionne quand même hors ligne, ta progression est gardée sur cet appareil.</p></div>` : u ? `
       <div class="card account"><div class="avatar">${u.photoURL ? `<img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">` : "👤"}</div><div class="grow"><b>${esc(u.displayName || "Mon compte")}</b><small class="muted">${esc(u.email || "")}</small><p class="tiny">${syncState === "error" ? "⚠️ Synchronisation impossible pour le moment (hors ligne ?). Tes données restent sur l'appareil et partiront dès que possible." : "☁️ Sessions, examens, erreurs et réglages sauvegardés dans ton compte."}</p></div></div>
       <div class="stack"><button class="btn full" data-act="syncnow">🔄 Synchroniser maintenant</button><button class="btn ghost full" data-act="logout">Se déconnecter</button></div>
       <h2>Ce qui est sauvegardé</h2><ul class="muted"><li>${plural(S.exams.length, "examen blanc", "examens blancs")} détaillé${S.exams.length > 1 ? "s" : ""} (chaque réponse, chaque temps)</li><li>${plural(S.sessions.length, "session")} d'entraînement</li><li>Ta progression sur ${Object.keys(S.q).length} questions et ${Object.keys(S.signs).length} panneaux</li><li>Ton carnet d'erreurs et ta révision espacée</li></ul>
@@ -761,6 +854,7 @@
 
   /* ================================================================== prof IA */
   function aiAllowed() {
+    if (window.PERMIS_NO_CLOUD) { modal(`<h2>🤖 Prof IA</h2><p>Le prof IA fonctionne dans la version en ligne, avec un compte gratuit :</p><p><b>jpdev-create.github.io/les-petites-fees/permis/</b></p>`); return false; }
     if (!window.Cloud) { toast("Le prof IA a besoin d'internet."); return false; }
     if (!cloudUser()) { modal(`<h2>🤖 Prof IA</h2><p>Le prof IA est réservé aux comptes (c'est gratuit) : il explique tes erreurs, répond à tes questions et analyse tes examens.</p><a class="btn primary full" href="#/compte" data-close>Créer mon compte</a>`); return false; }
     if (S.ai.day !== today()) S.ai = { day: today(), n: 0 };
@@ -798,7 +892,7 @@
       log.insertAdjacentHTML("beforeend", `<div class="msg me"><p>${esc(text)}</p></div><div class="msg bot typing"><p>…</p></div>`);
       const out = log.lastElementChild;
       log.scrollTop = log.scrollHeight;
-      S.ai.n++; save(false);
+      S.ai.n++; S.badges.ai = S.badges.ai || now(); save(false);
       try {
         const full = await window.Cloud.ask(hist, text, (t) => { out.classList.remove("typing"); out.innerHTML = md(t); log.scrollTop = log.scrollHeight; });
         hist.push({ role: "user", text }, { role: "model", text: full });
@@ -871,6 +965,17 @@ Historique : ${S.exams.slice(-5).map((e) => e.score + "/50").join(", ") || "prem
     m.addEventListener("click", (e) => { if (e.target === m || e.target.closest("[data-close]")) m.remove(); });
     document.body.appendChild(m);
   }
+  // Confirmation dans la page (les boîtes confirm() natives sont bloquées dans certains affichages)
+  function ask(title, text, okLabel, danger) {
+    return new Promise((resolve) => {
+      const m = document.createElement("div");
+      m.className = "modal";
+      m.innerHTML = `<div class="modal-box" role="alertdialog" aria-modal="true"><h2>${esc(title)}</h2><p>${esc(text)}</p><div class="stack-row" style="justify-content:flex-end"><button class="btn ghost" data-r="0">Annuler</button><button class="btn ${danger ? "danger" : "primary"}" data-r="1">${esc(okLabel)}</button></div></div>`;
+      m.addEventListener("click", (e) => { const r = e.target.closest("[data-r]"); if (r || e.target === m) { m.remove(); resolve(!!r && r.dataset.r === "1"); } });
+      document.body.appendChild(m);
+      m.querySelector('[data-r="1"]').focus();
+    });
+  }
   function toast(t) {
     const el = document.createElement("div");
     el.className = "toast"; el.textContent = t;
@@ -891,6 +996,7 @@ Historique : ${S.exams.slice(-5).map((e) => e.score + "/50").join(", ") || "prem
       case "unseen": startSession("practice", shuffle(pool().filter((q) => !S.q[q.id]).map((q) => q.id)).slice(0, 20), "Nouvelles questions"); break;
       case "graves": startSession("practice", shuffle(pool().filter((q) => q.g)).sort((a, b) => ((S.q[a.id] || {}).box || 0) - ((S.q[b.id] || {}).box || 0) || ageH(b.id) - ageH(a.id)).slice(0, 20).map((q) => q.id), "Fautes graves"); break;
       case "review": startSession("practice", dueIds().slice(0, 25), "Révision"); break;
+      case "daily": startSession("practice", dailyIds(), "Défi du jour"); if (SES) { SES.daily = true; persistSes(); } break;
       case "gen": startSession("practice", GEN.batch(10, arg, S.region), GEN.KINDS[arg].nom); break;
       case "train": {
         const qs = pool().filter((q) => q.t === arg);
@@ -908,7 +1014,7 @@ Historique : ${S.exams.slice(-5).map((e) => e.score + "/50").join(", ") || "prem
       case "guess": SES.guess = !SES.guess; vPlay(); break;
       case "next": next(); break;
       case "quit":
-        if (SES && SES.mode === "exam" && SES.log.length && !confirm("Quitter l'examen ? Tu pourras le reprendre depuis l'accueil.")) return;
+        if (SES && SES.mode === "exam" && SES.log.length && !(await ask("Quitter l'examen ?", "Tu pourras le reprendre plus tard depuis l'accueil.", "Quitter"))) return;
         if (SES && SES.mode !== "signs") persistSes();
         SES = null; go("#/"); break;
       case "spick": spick(arg); break;
@@ -944,13 +1050,13 @@ Historique : ${S.exams.slice(-5).map((e) => e.score + "/50").join(", ") || "prem
       case "google": try { await window.Cloud.signInGoogle(); toast("Connecté ✅"); go("#/compte"); } catch (err) { if (err && err.code !== "auth/popup-closed-by-user" && err.code !== "auth/cancelled-popup-request") toast("Connexion impossible : " + (err.code || err.message)); } break;
       case "logout": await window.Cloud.signOut(); toast("Déconnecté. Ta progression reste sur cet appareil."); render(); break;
       case "syncnow": await syncDown(); toast(syncState === "ok" ? "Synchronisé ✅" : "Synchronisation impossible pour le moment"); break;
-      case "wipecloud": if (confirm("Supprimer définitivement tes données du nuage ?")) { try { await window.Cloud.wipe(); toast("Données du nuage supprimées"); } catch (err) { toast("Échec : " + err.message); } } break;
+      case "wipecloud": if (await ask("Supprimer tes données du nuage ?", "Ta progression enregistrée dans ton compte sera effacée définitivement.", "Supprimer", true)) { try { await window.Cloud.wipe(); toast("Données du nuage supprimées"); } catch (err) { toast("Échec : " + err.message); } } break;
       case "export": {
         const blob = new Blob([JSON.stringify(S)], { type: "application/json" });
         const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `permis-be-progression-${today()}.json`; a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000); break;
       }
-      case "reset": if (confirm("Effacer toute ta progression sur cet appareil ? (Ton compte en ligne n'est pas touché.)")) { const r = S.region; S = defaults(); S.region = r; save(false); toast("Progression effacée"); render(); } break;
+      case "reset": if (await ask("Tout effacer sur cet appareil ?", "Ta progression locale sera supprimée. Ton compte en ligne n'est pas touché.", "Effacer", true)) { const r = S.region; S = defaults(); S.region = r; save(false); toast("Progression effacée"); render(); } break;
     }
   });
 
