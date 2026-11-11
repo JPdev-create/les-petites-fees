@@ -108,32 +108,3 @@ Tester les automatisations sur l'émulateur :
 ```bash
 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run automation
 ```
-
----
-
-## 🚗 Bonus : Permis BE — entraînement à la théorie du permis B
-
-Application autonome dans `public/permis/` (HTML/CSS/JS, sans étape de build, hors ligne, installable).
-Publiée avec le site : **https://jpdev-create.github.io/les-petites-fees/permis/**
-
-- **399 questions rédigées** et expliquées (piège, référence), filtrées par Région, dont ~90 « fautes graves »
-- **Générateurs** de questions toujours nouvelles : carrefours de priorité aléatoires résolus par un moteur de règles,
-  panneaux (sens → dessin et dessin → sens), vitesses par Région, distances de réaction / freinage / 2 secondes, barème
-- **79 panneaux belges** dessinés en SVG, schémas de carrefour
-- **Examen blanc** 50 questions au barème réel (−1 / −5, 41/50), sans répétition des examens récents, chrono optionnel ;
-  page de détail : chaque réponse, temps par question, filtres (erreurs, graves, plus lentes), comparaison, bilan IA
-- **Révision espacée** (Leitner), bouton « je doute », carnet d'erreurs, coach, reprise d'une session interrompue
-- **Livre des règles** : 22 chapitres avec recherche + fiches express, nouveautés 2026 et Code de la voie publique (2027)
-- **Compte** (Google ou lien e-mail) : progression, sessions et examens détaillés sauvegardés dans Firestore
-  (`permis_users/{uid}`, sous-collections `exams` et `sessions`), fusion automatique entre appareils
-- **Prof IA** (Firebase AI Logic → Gemini) : explique une question, répond aux questions, bilan d'examen ; réservé aux comptes, 60 questions/jour
-
-### Mise en route du compte et de l'IA (une seule fois, console Firebase du projet)
-1. Publier les règles mises à jour : `npm run deploy:rules` (ajoute le bloc `permis_users`, sans toucher aux règles existantes).
-2. **Authentication** : Google et « Lien envoyé par e-mail » sont déjà activés pour le planning ; rien à faire
-   (domaine `jpdev-create.github.io` déjà autorisé).
-3. **AI Logic** (menu *Build → AI Logic*) : *Get started* → choisir **Gemini Developer API** (offre gratuite, pas de carte requise).
-4. Recommandé : **App Check** (reCAPTCHA Enterprise) pour éviter qu'un tiers consomme le quota IA.
-
-Pour utiliser un projet Firebase séparé, remplacer les valeurs de `public/permis/js/firebase-config.js`.
-Tests locaux avec les émulateurs : `localStorage.setItem("permisbe.emulators","1")` sur `localhost`.
