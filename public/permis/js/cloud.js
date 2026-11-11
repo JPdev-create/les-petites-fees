@@ -75,7 +75,7 @@ let model = null;
 function getModel() {
   if (!model) {
     const ai = getAI(app, { backend: new GoogleAIBackend() });
-    model = getGenerativeModel(ai, { model: window.PERMIS_AI_MODEL || "gemini-2.5-flash", systemInstruction: SYSTEM, generationConfig: { temperature: 0.4, maxOutputTokens: 900 } });
+    model = getGenerativeModel(ai, { model: window.PERMIS_AI_MODEL || "gemini-2.5-flash", systemInstruction: SYSTEM, generationConfig: { temperature: 0.4, maxOutputTokens: 4096 } });
   }
   return model;
 }

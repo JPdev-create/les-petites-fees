@@ -107,20 +107,25 @@
   }
 
   /* ================= Panneaux ================= */
+  // 4 panneaux aux noms tous différents : la bonne réponse + jusqu'à `nSame` de la même famille + d'autres familles
+  function signOptions(k, nSame) {
+    const S = window.SIGNS, keys = Object.keys(S), names = new Set([S[k].nom]), out = [k];
+    const take = (list, n) => { for (const x of list) { if (out.length >= 4 || n <= 0) break; if (!names.has(S[x].nom)) { names.add(S[x].nom); out.push(x); n--; } } };
+    take(shuffle(keys.filter((x) => S[x].cat === S[k].cat)), nSame);
+    take(shuffle(keys.filter((x) => S[x].cat !== S[k].cat)), 4);
+    return out;
+  }
+  window.signOptions = signOptions;
   function genSignName() {
     const S = window.SIGNS, keys = Object.keys(S);
     const k = pick(keys), sg = S[k];
-    const same = shuffle(keys.filter((x) => x !== k && S[x].cat === sg.cat && S[x].nom !== sg.nom));
-    const other = shuffle(keys.filter((x) => S[x].cat !== sg.cat));
-    const opts = shuffle([k, ...same.slice(0, 2), ...other].slice(0, 4));
+    const opts = shuffle(signOptions(k, 2));
     return { id: uid("sign"), gen: "sign", t: "panneaux", s: k, q: "Que signifie ce panneau ?", o: opts.map((x) => S[x].nom), a: opts.indexOf(k), fix: true, e: `${sg.code} — ${sg.sens}`, ref: sg.code, signKey: k };
   }
   function genSignPick() {
     const S = window.SIGNS, keys = Object.keys(S);
     const k = pick(keys), sg = S[k];
-    const same = shuffle(keys.filter((x) => x !== k && S[x].cat === sg.cat && S[x].nom !== sg.nom));
-    const other = shuffle(keys.filter((x) => S[x].cat !== sg.cat && x !== k));
-    const opts = shuffle([k, ...same.slice(0, 3), ...other].slice(0, 4));
+    const opts = shuffle(signOptions(k, 3));
     return { id: uid("signpick"), gen: "signpick", t: "panneaux", q: `Quel panneau signifie : « ${sg.nom} » ?`, o: opts.map((x) => `${S[x].code} — ${S[x].nom}`), oh: opts.map((x) => S[x].svg()), keys: opts, a: opts.indexOf(k), fix: true, e: `C'est le ${sg.code}. ${sg.sens}`, ref: sg.code, signKey: k };
   }
 
