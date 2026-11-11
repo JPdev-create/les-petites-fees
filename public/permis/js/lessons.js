@@ -99,13 +99,13 @@ window.LESSONS = [
   },
   {
     id: "autoroute", theme: "autoroute", titre: "Autoroute", intro: "Une route rapide avec des règles strictes.",
-    chiffres: [["120", "max"], ["70", "min (code actuel)"], ["100 m", "triangle"], ["112", "en cas de panne dangereuse"]],
+    chiffres: [["120", "max"], ["70", "min (code actuel)"], ["100 m", "triangle"], ["25 km/h", "remorquage"]],
     html: `<ul><li>S'insérer : prendre de la vitesse sur la bande d'accélération et <b>céder le passage</b> à ceux qui sont déjà sur l'autoroute.</li>
 <li>Rouler sur la bande la plus à droite possible ; les autres servent à dépasser.</li>
 <li><b>Interdits</b> : demi-tour, marche arrière, emprunter la berme centrale, s'arrêter hors des endroits prévus.</li>
 <li>Bande d'arrêt d'urgence : nécessité absolue uniquement.</li>
 <li>Croix rouge au-dessus d'une bande : on la quitte.</li>
-<li>Panne : rejoindre si possible la sortie ou une zone refuge ; sinon gilet avant de sortir, tout le monde derrière la glissière, triangle à 100 m si possible sans danger, dépanneur agréé.</li></ul>`,
+<li>Panne : gilet avant de sortir, tout le monde derrière la glissière, triangle à 100 m si possible sans danger.</li></ul>`,
     pieges: ["Pas de tirette sur une bande d'accélération.", "Sortie ratée : on continue jusqu'à la suivante."],
   },
   {

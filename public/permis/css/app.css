@@ -357,5 +357,3 @@ a.row { text-decoration: none; color: inherit; }
 .trophy small { color: var(--muted); font-size: .76rem; line-height: 1.3; }
 .trophy em { font-style: normal; font-size: .7rem; color: var(--ok); margin-top: 4px; }
 .stack-row .grow { flex: 1; }
-
-@media (min-width: 900px) { #app { margin-left: max(108px, calc(50% - 360px)); margin-right: auto; } }

@@ -1,6 +1,6 @@
 /* Permis BE — service worker : l'application fonctionne entièrement hors ligne.
  * Portée limitée au dossier /permis/ (prioritaire sur le service worker du site principal). */
-const VERSION = "permisbe-v4";
+const VERSION = "permisbe-v3";
 const FILES = [
   "./", "index.html", "css/app.css", "manifest.webmanifest", "icon.svg", "icon-192.png", "apple-touch-icon.png",
   "js/firebase-config.js", "js/signs.js", "js/questions.js", "js/questions2.js", "js/gen.js", "js/rules.js", "js/lessons.js", "js/tpr.js", "js/app.js", "js/cloud.js",

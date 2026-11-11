@@ -155,7 +155,7 @@
   /* ================================================================== nuage */
   const cloudUser = () => (window.Cloud && window.Cloud.user) || null;
   let syncState = "off"; // off | syncing | ok | error
-  const stateForCloud = () => { const { saved, exams, sessions, owner, ...rest } = S; return rest; };
+  const stateForCloud = () => { const { saved, exams, sessions, ...rest } = S; return rest; };
 
   async function pushState() {
     if (!cloudUser()) return;
@@ -213,13 +213,7 @@
     window.Cloud.onUser((u) => {
       syncState = u ? "syncing" : "off";
       updateSyncBadge();
-      if (u && S.owner && S.owner !== u.uid) {
-        // Autre compte sur le même appareil : on ne mélange pas les progressions.
-        const keep = { region: S.region, look: S.look, sound: S.sound, timer: S.timer, goal: S.goal, genShare: S.genShare };
-        S = Object.assign(defaults(), keep);
-        save(false);
-      }
-      if (u) { S.owner = u.uid; syncDown(); }
+      if (u) syncDown();
       else if (["#/compte"].includes(location.hash)) render();
     });
   }
@@ -293,8 +287,7 @@
     clearInterval(timerId);
     if (tprStop) { tprStop(); tprStop = null; }
     const parts = location.hash.split("/");
-    const alias = { lessons: "regles", lesson: "fiche" }; // liens de la première version
-    const route = alias[parts[1]] || parts[1] || "", arg = decodeURIComponent(parts.slice(2).join("/") || "");
+    const route = parts[1] || "", arg = decodeURIComponent(parts.slice(2).join("/") || "");
     const views = { "": vHome, train: vTrain, play: vPlay, result: vResult, exam: vExamIntro, regles: vRules, fiche: vLesson, signs: vSigns, stats: vStats, errors: vErrors, settings: vSettings, historique: vHistory, detail: vDetail, compte: vAccount, tpr: vTpr, trophees: vBadges };
     if (!S.region && !["settings", "compte"].includes(route)) { document.body.dataset.route = "onboard"; app.innerHTML = vOnboard(); return; }
     document.body.dataset.route = route || "home";
@@ -362,7 +355,6 @@
   function dailyCard() {
     const done = S.daily[today()];
     let days = 0; const d = new Date();
-    if (done == null) d.setDate(d.getDate() - 1);
     while (S.daily[today(d)] != null) { days++; d.setDate(d.getDate() - 1); }
     return `<button class="daily ${done != null ? "done" : ""}" data-act="daily"><span class="ai">📅</span><span><b>Défi du jour</b><small>${done != null ? `Fait : ${done}/10 aujourd'hui · le refaire` : "10 questions, les mêmes pour tout le monde aujourd'hui"}${days > 1 ? ` · ${days} jours de suite` : ""}</small></span><span class="go">${done != null ? "✓" : "→"}</span></button>`;
   }
@@ -426,8 +418,11 @@
   }
 
   function startSigns(keys) {
+    const all = Object.keys(SG);
     const items = keys.map((k) => {
-      return { id: k, opts: shuffle(window.signOptions(k, 2)) };
+      const same = shuffle(all.filter((x) => x !== k && SG[x].cat === SG[k].cat && SG[x].nom !== SG[k].nom));
+      const other = shuffle(all.filter((x) => x !== k && SG[x].cat !== SG[k].cat));
+      return { id: k, opts: shuffle([k, ...same.slice(0, 2), ...other].slice(0, 4)) };
     });
     SES = { id: newId("s"), mode: "signs", title: "Quiz panneaux", items, i: 0, log: [], start: now(), retried: new Set(), state: "ask" };
     go("#/play");
