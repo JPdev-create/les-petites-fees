@@ -149,6 +149,25 @@ export async function adminCreateMissions(gite: Gite, dates: string[], opts: { t
   await log(by, `${dates.length} passage(s) ajouté(s) pour ${gite.name}`);
 }
 
+/** Ajout par le gestionnaire de passages « entre … et … » : en attente, le jour exact sera fixé ensuite. */
+export async function adminCreatePeriods(gite: Gite, ranges: { from: string; to: string }[], opts: { time?: string | null; note?: string }, by: string) {
+  const batch = writeBatch(db());
+  const t = now();
+  for (const r of ranges) {
+    const ref = doc(collection(db(), "missions"));
+    batch.set(ref, {
+      giteId: gite.id, giteName: gite.name, giteColor: gite.color, ownerEmail: gite.ownerEmail, ownerName: gite.ownerName,
+      date: r.from, dateTo: r.to > r.from ? r.to : null, time: opts.time || gite.defaultTime || null, status: "REQUESTED", source: "ADMIN",
+      urgent: false, extraLinen: false, ownerNote: null, adminNote: null,
+      price: gite.price, notifyAdmin: false, notifyOwner: null,
+      createdAt: t, updatedAt: t, doneAt: null,
+    });
+    if (opts.note?.trim()) batch.set(doc(db(), "missionNotes", ref.id), { text: opts.note.trim(), by, updatedAt: t });
+  }
+  await batch.commit();
+  await log(by, `${ranges.length} période(s) ajoutée(s) pour ${gite.name} : ${ranges.map((r) => `${formatDate(r.from, "short")} → ${formatDate(r.to, "short")}`).join(", ")}`);
+}
+
 /* ------------------------- Passages réguliers ------------------------- */
 
 const horizon = () => addDays(todayISO(), HORIZON_DAYS);

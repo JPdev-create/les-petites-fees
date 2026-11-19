@@ -2,15 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Ban } from "lucide-react";
+import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Ban, CalendarRange, CalendarDays } from "lucide-react";
 import type { Gite, Mission, MissionStatus } from "@/lib/types";
 import { SOURCE, formatDate, relativeDay, todayISO, periodOf, timeAgo, addDays, missionWhen } from "@/lib/format";
-import { deleteMission, moveMission, setMissionsStatus, adminCreateMissions, completeMissions, confirmOnDate, saveMissionNote } from "@/lib/actions";
+import { deleteMission, moveMission, setMissionsStatus, adminCreateMissions, adminCreatePeriods, completeMissions, confirmOnDate, saveMissionNote } from "@/lib/actions";
 import { useLiveDoc } from "@/lib/hooks";
 import { durationLabel } from "@/lib/pricing";
 import { missionTitle, recurrenceLabel } from "@/lib/recurrence";
 import { useAdmin } from "./admin-data";
-import { Field, Modal, Spinner, StatusBadge, Toggle } from "./ui";
+import { Field, Modal, Segmented, Spinner, StatusBadge, Toggle } from "./ui";
 import { MonthPicker } from "./month-picker";
 import { toast } from "./toaster";
 import { askConfirm } from "@/components/confirm";
@@ -252,9 +252,15 @@ export function NewMissionDialog({ open, onClose, defaultDate, defaultGiteId }: 
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [repeat, setRepeat] = useState(0);
+  const [mode, setMode] = useState<"dates" | "range">("dates");
+  const [ranges, setRanges] = useState<{ from: string; to: string }[]>([]);
+  const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    setMode("dates");
+    setRanges([]);
+    setPending(null);
     const d = defaultDate ?? todayISO();
     setGiteId(defaultGiteId ?? "");
     setPeriod(periodOf(d));
@@ -271,10 +277,41 @@ export function NewMissionDialog({ open, onClose, defaultDate, defaultGiteId }: 
     return [...out].sort();
   }, [dates, repeat]);
 
+  // Mode « période » : premier toucher = début, second = fin
+  const pickRange = (d: string) => {
+    if (ranges.some((r) => d >= r.from && d <= r.to)) {
+      setRanges((rs) => rs.filter((r) => !(d >= r.from && d <= r.to)));
+      return;
+    }
+    if (!pending) {
+      setPending(d);
+      toast("Touchez maintenant le dernier jour de la période", "info");
+      return;
+    }
+    if (d === pending) return setPending(null);
+    const from = d < pending ? d : pending;
+    const to = d < pending ? pending : d;
+    setRanges((rs) => [...rs, { from, to }].sort((a, b) => a.from.localeCompare(b.from)));
+    setPending(null);
+  };
+  const rangeEnds = useMemo(() => new Set([...ranges.flatMap((r) => [r.from, r.to]), ...(pending ? [pending] : [])]), [ranges, pending]);
+  const rangeInside = useMemo(() => {
+    const out = new Set<string>();
+    for (const r of ranges) for (let d = addDays(r.from, 1); d < r.to; d = addDays(d, 1)) out.add(d);
+    return out;
+  }, [ranges]);
+  const count = mode === "range" ? ranges.length : allDates.length;
+
   const submit = async () => {
-    if (!gite || !allDates.length) return;
+    if (!gite || !count) return;
     setBusy(true);
     try {
+      if (mode === "range") {
+        await adminCreatePeriods(gite, ranges, { time: time || null, note }, me.name);
+        toast(`${ranges.length} période(s) ajoutée(s) — jour à fixer ensuite`);
+        onClose();
+        return;
+      }
       await adminCreateMissions(gite, allDates, { time: time || null, status, note, notify }, me.name);
       toast(`${allDates.length} passage(s) ajouté(s)`);
       onClose();
@@ -295,8 +332,8 @@ export function NewMissionDialog({ open, onClose, defaultDate, defaultGiteId }: 
       footer={
         <>
           <button className="btn-ghost" onClick={onClose}>Annuler</button>
-          <button className="btn-primary" disabled={busy || !gite || !allDates.length} onClick={submit}>
-            {busy ? <Spinner /> : <Plus className="size-4" />} Ajouter {allDates.length > 0 ? `${allDates.length} passage${allDates.length > 1 ? "s" : ""}` : ""}
+          <button className="btn-primary" disabled={busy || !gite || !count} onClick={submit}>
+            {busy ? <Spinner /> : <Plus className="size-4" />} Ajouter {count > 0 ? (mode === "range" ? `${count} période${count > 1 ? "s" : ""}` : `${count} passage${count > 1 ? "s" : ""}`) : ""}
           </button>
         </>
       }
@@ -310,18 +347,47 @@ export function NewMissionDialog({ open, onClose, defaultDate, defaultGiteId }: 
             </select>
           </Field>
           <div className="mt-4">
-            <MonthPicker
-              period={period}
-              onPeriod={setPeriod}
-              selected={new Set(allDates)}
-              onToggle={(d) => setDates((s) => { const n = new Set(s); if (n.has(d)) n.delete(d); else n.add(d); return n; })}
+            <Segmented<"dates" | "range">
+              value={mode}
+              onChange={(v) => { setMode(v); setPending(null); }}
+              options={[
+                { value: "dates", label: <span className="inline-flex items-center gap-1.5"><CalendarDays className="size-4" /> Dates précises</span> },
+                { value: "range", label: <span className="inline-flex items-center gap-1.5"><CalendarRange className="size-4" /> Entre … et …</span> },
+              ]}
             />
+            <p className="muted mt-2 text-xs">
+              {mode === "dates" ? "Touchez chaque jour de passage." : "Touchez le premier puis le dernier jour : un passage à placer dans cette période (le jour exact sera fixé ensuite)."}
+            </p>
           </div>
+          <div className="mt-3">
+            {mode === "dates" ? (
+              <MonthPicker
+                period={period}
+                onPeriod={setPeriod}
+                selected={new Set(allDates)}
+                onToggle={(d) => setDates((s) => { const n = new Set(s); if (n.has(d)) n.delete(d); else n.add(d); return n; })}
+              />
+            ) : (
+              <MonthPicker period={period} onPeriod={setPeriod} selected={rangeEnds} soft={rangeInside} onToggle={pickRange} />
+            )}
+          </div>
+          {mode === "range" && ranges.length > 0 && (
+            <ul className="mt-3 space-y-2">
+              {ranges.map((r) => (
+                <li key={`${r.from}_${r.to}`} className="flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-sm dark:bg-brand-500/10">
+                  <CalendarRange className="size-4 shrink-0 text-brand-600" />
+                  <span className="flex-1">Entre le {formatDate(r.from, "short")} et le {formatDate(r.to, "short")}</span>
+                  <button className="btn-ghost size-8 px-0 text-rose-600" aria-label="Retirer cette période" onClick={() => setRanges((rs) => rs.filter((x) => x !== r))}><Trash2 className="size-4" /></button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div className="space-y-4">
           <Field label="Heure" hint={gite?.defaultTime ? `Par défaut : ${gite.defaultTime}` : undefined}>
             <input type="time" className="input" value={time} onChange={(e) => setTime(e.target.value)} />
           </Field>
+          {mode === "dates" && (<>
           <Field label="Répéter chaque semaine">
             <div className="relative">
               <Repeat className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
@@ -338,8 +404,10 @@ export function NewMissionDialog({ open, onClose, defaultDate, defaultGiteId }: 
               <option value="DONE">Déjà effectué</option>
             </select>
           </Field>
+          </>)}
           <Field label="Note interne"><input className="input" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-          {status === "CONFIRMED" && <Toggle checked={notify} onChange={setNotify} label="Prévenir le client" hint="E-mail de confirmation" />}
+          {mode === "dates" && status === "CONFIRMED" && <Toggle checked={notify} onChange={setNotify} label="Prévenir le client" hint="E-mail de confirmation" />}
+          {mode === "range" && <p className="rounded-2xl bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">Le passage sera « en attente ». Vous choisirez ensuite le jour exact depuis les demandes : le client recevra alors la confirmation.</p>}
         </div>
       </div>
     </Modal>
