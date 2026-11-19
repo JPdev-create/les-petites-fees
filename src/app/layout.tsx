@@ -30,11 +30,16 @@ export const viewport: Viewport = {
 // Applique le thème avant l'affichage (évite le flash clair/sombre)
 const themeScript = `try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`;
 
+// Capture l'invitation d'installation Android/Chrome dès le chargement (avant React),
+// pour que le bouton « Installer » fonctionne sur n'importe quelle page.
+const installScript = `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__bip=e;window.dispatchEvent(new Event('bip-ready'))});window.addEventListener('appinstalled',function(){window.__bip=null;window.dispatchEvent(new Event('bip-ready'))});`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" suppressHydrationWarning className={`${GeistSans.variable} ${poppins.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: installScript }} />
       </head>
       <body className="min-h-dvh font-sans">
         {children}

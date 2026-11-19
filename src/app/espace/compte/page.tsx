@@ -8,6 +8,7 @@ import { logout } from "@/components/auth";
 import { Field, Spinner, Toggle } from "@/components/ui";
 import { toast } from "@/components/toaster";
 import { ownerSaveProfile } from "@/lib/actions";
+import { InstallAppCard } from "@/components/pwa";
 
 export default function AccountPage() {
   const { me, gites, missions, settings } = useOwner();
@@ -61,6 +62,9 @@ export default function AccountPage() {
         </div>
         {dirty && <button className="btn-primary w-full sm:w-auto" disabled={busy} onClick={save}>{busy ? <Spinner /> : <Save className="size-4" />} Enregistrer</button>}
       </section>
+
+      {/* Installation de l'application */}
+      <InstallAppCard />
 
       {/* RGPD */}
       <section className="card space-y-3 p-5">
