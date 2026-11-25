@@ -14,11 +14,12 @@ process.env.TZ ||= "Europe/Brussels";
 
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { initAdmin } from "./lib/admin";
-import { APP_URL, send, sendSms } from "./lib/mailer";
+import { APP_URL, send, sendSms, type Attachment } from "./lib/mailer";
 import { adminRequestsEmail, adminSignupEmail, doneSummaryEmail, inviteEmail, ownerUpdateEmail, reminderEmail } from "./lib/emails";
 import { MAX_ICS_BYTES, isReservation, parseIcs, safeFeedUrl } from "./lib/ical";
 import { extendAll } from "./lib/recurrences";
 import { initPointeuse, syncPointeuse } from "./lib/pointeuse";
+import { FICHES_COLLECTION, estValidee, ficheId, nomFichierPdf, remplirPdf, type FicheControle } from "./lib/fiches-controle";
 import { DEFAULT_SETTINGS, type Gite, type Mission, type Profile, type Settings } from "../src/lib/types";
 import { addDays, currentPeriod, formatDate, periodBounds, periodLabel, shiftPeriod, toISODate, todayISO } from "../src/lib/format";
 
@@ -121,7 +122,25 @@ async function notifyOwners(s: Settings, people: Map<string, Profile>) {
   return snap.size;
 }
 
-/* ---------------- 4. Résumé du soir : nettoyages effectués (gîtes) ---------------- */
+/* ---------------- 4. Résumé du soir : nettoyages effectués (+ fiches de contrôle) ---------------- */
+/** Base de la pointeuse pour lire les fiches de contrôle, ou null (clé absente ou abîmée : mail sans fiche) */
+function pointeuseOuNull(): Firestore | null {
+  try { return initPointeuse(); } catch (e) { console.error("Fiches de contrôle : pointeuse injoignable :", e); return null; }
+}
+
+/** Fiche de contrôle validée du passage (remplie dans la pointeuse), ou null */
+async function ficheDuPassage(pt: Firestore | null, m: Mission, g?: Gite & { pointeuseChantierId?: string }): Promise<FicheControle | null> {
+  if (!pt || !g?.pointeuseChantierId) return null;
+  try {
+    const snap = await pt.collection(FICHES_COLLECTION).doc(ficheId(g.pointeuseChantierId, m.date)).get();
+    const f = snap.exists ? { id: snap.id, ...snap.data() } : null;
+    return estValidee(f) ? f : null;
+  } catch (e) {
+    console.error(`Fiche de contrôle de ${m.date} ${g.name} :`, e);
+    return null;
+  }
+}
+
 async function notifyDone(s: Settings, people: Map<string, Profile>) {
   // Une fois par jour, après l'envoi à la pointeuse (19 h) : un passage marqué effectué par erreur peut encore être rouvert
   if (new Date().getHours() < POINTEUSE_HOUR || s.lastDoneSummaryRun?.slice(0, 10) === todayISO()) return null;
@@ -129,20 +148,43 @@ async function notifyDone(s: Settings, people: Map<string, Profile>) {
   await db.doc("settings/main").set({ lastDoneSummaryRun: todayISO() }, { merge: true });
   if (snap.empty) return 0;
   const gites = await giteMap();
-  const groups = new Map<string, Mission[]>();
+  const pt = pointeuseOuNull();
+  // Gîtes : toujours annoncés. Autres lieux (bureaux, appartements…) : seulement avec une fiche de contrôle validée.
+  const groups = new Map<string, { m: Mission; fiche: FicheControle | null }[]>();
   for (const d of snap.docs) {
     const m = { id: d.id, ...d.data() } as Mission;
-    if (m.status !== "DONE" || gites.get(m.giteId)?.kind !== "GITE") continue; // seulement les gîtes
-    groups.set(m.ownerEmail, [...(groups.get(m.ownerEmail) ?? []), m]);
+    const g = gites.get(m.giteId);
+    if (m.status !== "DONE" || !g) continue;
+    const fiche = await ficheDuPassage(pt, m, g);
+    if (g.kind !== "GITE" && !fiche) continue;
+    groups.set(m.ownerEmail, [...(groups.get(m.ownerEmail) ?? []), { m, fiche }]);
   }
   let sent = 0;
-  for (const [email, list] of groups) {
+  for (const [email, items] of groups) {
     const p = people.get(email);
     if (!p || !p.active || !p.notifyEmail) continue;
-    list.sort((a, b) => a.date.localeCompare(b.date));
-    const [subject, mail, kind] = doneSummaryEmail(p, list, gites);
-    await send(db, p.email, subject, mail, s, kind);
+    items.sort((a, b) => a.m.date.localeCompare(b.m.date));
+    const attachments: Attachment[] = [];
+    const jointes: FicheControle[] = [];
+    for (const { fiche } of items) {
+      if (!fiche) continue;
+      try {
+        attachments.push({ filename: nomFichierPdf(fiche), content: Buffer.from(await remplirPdf(fiche)), contentType: "application/pdf" });
+        jointes.push(fiche);
+      } catch (e) {
+        console.error(`PDF de la fiche ${fiche.id} :`, e);
+      }
+    }
+    const [subject, mail, kind] = doneSummaryEmail(p, items.map((i) => i.m), gites, attachments.length);
+    const status = await send(db, p.email, subject, mail, s, kind, undefined, attachments);
     sent++;
+    // La pointeuse affiche « Envoyée au client » sur la fiche
+    if (status === "SENT" && pt) {
+      for (const f of jointes) {
+        await pt.collection(FICHES_COLLECTION).doc(f.id!).update({ envoyeeLe: now(), envoyeeA: p.email })
+          .catch((e) => console.error(`Fiche ${f.id} : envoi non noté :`, e));
+      }
+    }
   }
   const batch = db.batch();
   snap.docs.forEach((d) => batch.update(d.ref, { notifyDone: false }));

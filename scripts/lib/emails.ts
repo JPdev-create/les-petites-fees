@@ -83,8 +83,9 @@ export function ownerUpdateEmail(p: Profile, list: Mission[], gites: Map<string,
   ];
 }
 
-/** Résumé du soir : nettoyages effectués aujourd'hui (gîtes), sans durée ni montant */
-export function doneSummaryEmail(p: Profile, list: Mission[], gites: Map<string, Gite>): [string, Email, string] {
+/** Résumé du soir : nettoyages effectués aujourd'hui (gîtes, et autres lieux avec une fiche de contrôle jointe), sans durée ni montant */
+/** fiches : nombre de fiches de contrôle jointes (PDF) */
+export function doneSummaryEmail(p: Profile, list: Mission[], gites: Map<string, Gite>, fiches = 0): [string, Email, string] {
   const names = [...new Set(list.map((m) => missionTitle(m)))];
   return [
     list.length > 1 ? `${list.length} nettoyages effectués ✓` : `Nettoyage effectué ✓ — ${missionTitle(list[0])}`,
@@ -100,7 +101,10 @@ export function doneSummaryEmail(p: Profile, list: Mission[], gites: Map<string,
         },
       ],
       cta: { label: "Voir mes passages", url: `${APP_URL}/espace/historique/` },
-      after: ["Merci pour votre confiance !"],
+      after: [
+        ...(fiches ? [fiches > 1 ? `Les ${fiches} fiches de contrôle remplies sur place par notre équipe sont jointes à cet e-mail.` : "La fiche de contrôle remplie sur place par notre équipe est jointe à cet e-mail."] : []),
+        "Merci pour votre confiance !",
+      ],
     },
     "DONE",
   ];

@@ -152,23 +152,26 @@ export function render(e: Email, s: Settings = DEFAULT_SETTINGS) {
   return { html, text };
 }
 
+/** Pièce jointe (ex. fiche de contrôle en PDF) */
+export type Attachment = { filename: string; content: Buffer; contentType?: string };
+
 /** Envoie un e-mail et l'inscrit dans le journal (collection « mail »). */
-export async function send(db: Firestore, to: string, subject: string, e: Email, s: Settings, kind: string, logId?: string) {
+export async function send(db: Firestore, to: string, subject: string, e: Email, s: Settings, kind: string, logId?: string, attachments: Attachment[] = []) {
   const { html, text } = render(e, s);
   let status = "SIMULATED";
   let error: string | null = null;
   if (transport) {
     try {
-      await transport.sendMail({ from: `"${s.companyName}" <${user}>`, replyTo: s.companyEmail || user, to, subject, html, text });
+      await transport.sendMail({ from: `"${s.companyName}" <${user}>`, replyTo: s.companyEmail || user, to, subject, html, text, ...(attachments.length ? { attachments } : {}) });
       status = "SENT";
     } catch (err) {
       status = "FAILED";
       error = err instanceof Error ? err.message : String(err);
     }
   } else {
-    console.log(`  ✉ [simulé] ${to} — ${subject}`);
+    console.log(`  ✉ [simulé] ${to} — ${subject}${attachments.length ? ` (+ ${attachments.map((a) => a.filename).join(", ")})` : ""}`);
   }
-  const doc = { to, subject, text, kind, status, error, sentAt: new Date().toISOString() };
+  const doc = { to, subject, text, kind, status, error, sentAt: new Date().toISOString(), ...(attachments.length ? { attachments: attachments.map((a) => a.filename) } : {}) };
   if (logId) await db.collection("mail").doc(logId).update(doc);
   else await db.collection("mail").add({ ...doc, createdAt: new Date().toISOString() });
   return status;
