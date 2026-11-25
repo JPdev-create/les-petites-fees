@@ -107,7 +107,7 @@ type PlanningDoc = {
 type Change = { date: string; type: "ajout" | "suppression"; chantier: string; timestamp: string };
 
 export type PointeuseReport = {
-  created: number; updated: number; deleted: number; newChantiers: string[]; fiches: string[]; validated: string[]; notified: number; lines: string[];
+  created: number; updated: number; deleted: number; newChantiers: string[]; fiches: string[]; fichesControle: string[]; validated: string[]; notified: number; lines: string[];
 };
 
 type PtChantier = { id: string; name: string; status: string; aliases: string[]; data: FirebaseFirestore.DocumentData };
@@ -118,6 +118,18 @@ const FICHE_LABELS: Record<keyof Fiche, string> = {
   address: "adresse", email: "e-mail", totalHeuresPrevues: "heures prévues", fixedAppointment: "heure habituelle", additionalInfo: "infos",
 };
 const KIND_LABELS: Record<Gite["kind"], string> = { GITE: "Gîte", BUREAU: "Bureau", APPARTEMENT: "Appartement", AUTRE: "Autre" };
+
+/**
+ * Fiche de contrôle proposée d'après le type du lieu (B1 bureaux, A1 autres locaux professionnels).
+ * Gîtes et appartements : pas de fiche par défaut (aucun des modèles ne leur correspond).
+ * Posée une seule fois, sur un chantier qui n'a encore jamais eu de réglage : l'admin garde la main dans la pointeuse.
+ */
+export const MODELE_PAR_TYPE: Partial<Record<Gite["kind"], "A1" | "A2" | "B1">> = { BUREAU: "B1", AUTRE: "A1" };
+export function ficheControleParDefaut(g: Gite, current: FirebaseFirestore.DocumentData) {
+  if (current.ficheControle !== undefined) return null; // déjà réglé (même « Pas de fiche ») : on n'y touche plus
+  const modele = MODELE_PAR_TYPE[g.kind];
+  return modele ? { modele, zone: "", horsPrestation: [] as number[] } : null;
+}
 
 export function ficheFromGite(g: Gite): Fiche {
   const count = (n: number, one: string, many: string) => (n ? `${n} ${n > 1 ? many : one}` : "");
@@ -168,7 +180,7 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
   const today = todayISO();
   const until = addDays(today, POINTEUSE_WEEKS * 7);
   const t = new Date().toISOString();
-  const report: PointeuseReport = { created: 0, updated: 0, deleted: 0, newChantiers: [], fiches: [], validated: [], notified: 0, lines: [] };
+  const report: PointeuseReport = { created: 0, updated: 0, deleted: 0, newChantiers: [], fiches: [], fichesControle: [], validated: [], notified: 0, lines: [] };
 
   const [mSnap, gSnap, cSnap, pSnap, uSnap] = await Promise.all([
     lpf.collection("missions").where("date", ">=", today).where("date", "<=", until).get(),
@@ -200,6 +212,8 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
         .sort((a, b) => Number(b.status === "active") - Number(a.status === "active"))[0];
     const fiche = ficheFromGite(g);
     if (!c && !create) return null;
+    const ficheControle = ficheControleParDefaut(g, c?.data ?? {});
+    if (ficheControle) report.fichesControle.push(`${c?.name ?? g.name} (${KIND_LABELS[g.kind]}) : fiche ${ficheControle.modele}`);
     if (!c) {
       report.newChantiers.push(g.name);
       if (dryRun) c = { id: `(nouveau) ${g.name}`, name: g.name, status: "active", aliases: [], data: {} };
@@ -208,6 +222,7 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
           name: g.name, ...fiche, timeWindowStart: "", timeWindowEnd: "",
           isHideable: false, keyboxCodes: [], coordinates: null, lpfGiteId: g.id, lpfSynced: fiche,
           status: "active", source: "lpf", createdAt: FieldValue.serverTimestamp(),
+          ...(ficheControle ? { ficheControle } : {}),
         });
         c = { id: ref.id, name: g.name, status: "active", aliases: [], data: {} };
         chantiers.push(c);
@@ -215,10 +230,11 @@ export async function syncPointeuse(lpf: Firestore, pt: Firestore, dryRun = fals
     } else {
       // Fiche existante : on complète ce qui est vide, et on suit les changements faits chez LPF,
       // sans jamais écraser ce que l'admin a modifié lui-même dans la pointeuse.
-      const patch = fichePatch(c.data, fiche);
+      const patch: ReturnType<typeof fichePatch> & { ficheControle?: object } = fichePatch(c.data, fiche);
       if (c.data.lpfGiteId !== g.id) patch.lpfGiteId = g.id;
+      if (ficheControle) { patch.ficheControle = ficheControle; c.data.ficheControle = ficheControle; }
       if (Object.keys(patch).length) {
-        report.fiches.push(`${c.name} : ${Object.keys(patch).filter((k) => k in fiche).map((k) => FICHE_LABELS[k as keyof Fiche]).join(", ") || "lien"}`);
+        report.fiches.push(`${c.name} : ${[...Object.keys(patch).filter((k) => k in fiche).map((k) => FICHE_LABELS[k as keyof Fiche]), ...(patch.ficheControle ? ["fiche de contrôle"] : [])].join(", ") || "lien"}`);
         if (!dryRun) await pt.collection("chantiers").doc(c.id).update({ ...patch, lpfSynced: fiche, updatedAt: FieldValue.serverTimestamp() });
       }
     }
