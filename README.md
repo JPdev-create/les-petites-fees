@@ -3,7 +3,7 @@
 Application de gestion des plannings de nettoyage de gîtes, appartements et bureaux
 pour **Les Petites Fées**, service de nettoyage à Marche-en-Famenne.
 
-- **Clients (propriétaires)** : connexion en un clic (Google, ou lien par e-mail), encodage des dates en moins de 30 secondes, historique de leurs passages, gestion de leurs lieux.
+- **Clients (propriétaires)** : connexion en un clic (Google, ou lien par e-mail), encodage des dates en moins de 30 secondes, historique de leurs passages, gestion de leurs lieux. Un jour déjà prévu se touche pour l'ouvrir : demander un changement sur un passage confirmé (urgent, heure, linge, message — validé par un gestionnaire), ajouter un 2e passage le même jour, ou annuler.
 - **Gestionnaires** : tableau de bord, calendrier global (mois / semaine / liste), validation des demandes en masse, alertes de fin de mois, synchronisation Airbnb / Booking (iCal), tarifs au forfait ou à l'heure, linge & stock, journal des e-mails.
 - **Automatique** : relances des clients le 20 et le 25 du mois, e-mails de confirmation / refus / changement de date.
 - **Fiches de contrôle** : la fiche remplie sur place dans la Pointeuse LPF (modèles A1, A2, B1 dans `scripts/fiches/`) part en PDF avec le mail « Nettoyage effectué » du soir, pour les gîtes comme pour les bureaux et autres lieux qui en ont une.

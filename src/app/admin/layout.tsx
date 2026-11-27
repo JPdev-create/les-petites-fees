@@ -25,7 +25,8 @@ const MOBILE = ["/admin/", "/admin/calendrier/", "/admin/demandes/", "/admin/lie
 
 function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { me, pending } = useAdmin();
+  const { me, pending: requests, changes } = useAdmin();
+  const pending = { length: requests.length + changes.length };
   const [open, setOpen] = useState(false);
   const isActive = (n: (typeof NAV)[number]) => (n.exact ? path === n.href || path === n.href.slice(0, -1) : path.startsWith(n.href.slice(0, -1)));
 

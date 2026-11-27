@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { collection, limit, orderBy, query } from "firebase/firestore";
-import { Inbox, CalendarCheck, AlertTriangle, CheckCheck, Check, Plus, Send, Shirt, ArrowRight, Sparkles, Activity as ActivityIcon, CalendarDays, Home } from "lucide-react";
+import { Inbox, CalendarCheck, AlertTriangle, CheckCheck, Check, Plus, Send, Shirt, ArrowRight, Sparkles, Activity as ActivityIcon, CalendarDays, Home, Bell } from "lucide-react";
 import { useAdmin, missingPlanning } from "@/components/admin-data";
 import { MissionDialog, MissionLine, NewMissionDialog } from "@/components/mission-admin";
 import { Empty, PageHeader, Stat, Spinner } from "@/components/ui";
@@ -14,7 +14,7 @@ import { addDays, capitalize, currentPeriod, formatDate, periodLabel, shiftPerio
 import type { Activity, Mission } from "@/lib/types";
 
 export default function Dashboard() {
-  const { me, missions, gites, submissions, pending, loading, settings } = useAdmin();
+  const { me, missions, gites, submissions, pending, changes, loading, settings } = useAdmin();
   const [open, setOpen] = useState<Mission | null>(null);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -99,6 +99,17 @@ export default function Dashboard() {
           </p>
           <a href="#planning" className="btn-sm btn bg-rose-600 text-white hover:bg-rose-700">Voir la liste</a>
         </div>
+      )}
+
+      {changes.length > 0 && (
+        <Link href="/admin/demandes/" className="mb-6 flex animate-in items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/5 dark:text-amber-200">
+          <Bell className="size-5 shrink-0" />
+          <p className="flex-1">
+            <strong>{changes.length > 1 ? `${changes.length} changements demandés` : "Changement demandé"}</strong> sur des passages confirmés :{" "}
+            {changes.map((m) => `${m.giteName} le ${formatDate(m.date, "short")}${m.changeRequest?.urgent ? " (urgent)" : ""}`).join(", ")}.
+          </p>
+          <ArrowRight className="size-4" />
+        </Link>
       )}
 
       {gites.some((g) => g.pendingReview) && (

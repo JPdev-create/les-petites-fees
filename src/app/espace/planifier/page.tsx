@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Send, CalendarX2, Copy, ChevronDown, Zap, Shirt, Check, Sparkles, ArrowLeft, Trash2, Info, CalendarRange } from "lucide-react";
 import { useOwner } from "@/components/owner-data";
+import { OwnerMissionSheet } from "@/components/owner-mission";
 import { MonthPicker, type DayMarker } from "@/components/month-picker";
 import { Segmented, Spinner, Toggle } from "@/components/ui";
 import { toast } from "@/components/toaster";
 import { useParam } from "@/lib/hooks";
+import type { Mission } from "@/lib/types";
 import { declareEmptyMonth, ownerRequestDates, undoEmptyMonth, type RequestEntry } from "@/lib/actions";
 import { STATUS, addDays, currentPeriod, diffDays, formatDate, missionWhen, parseISODate, periodLabel, shiftPeriod, todayISO, weekdayIndex, pad } from "@/lib/format";
 
@@ -47,6 +49,7 @@ export default function PlanPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [done, setDone] = useState<{ count: number; empty: boolean } | null>(null);
+  const [openMission, setOpenMission] = useState<Mission | null>(null);
 
   useEffect(() => {
     if (moisParam && /^\d{4}-\d{2}$/.test(moisParam)) setPeriod(moisParam);
@@ -109,9 +112,9 @@ export default function PlanPage() {
 
   const toggle = (date: string) => {
     if (mode === "range") return pickRange(date);
-    if (existing.has(date)) {
-      const m = giteMissions.find((x) => x.date === date)!;
-      toast(`Déjà prévu ce jour-là (${STATUS[m.status].label.toLowerCase()})`, "info");
+    // Jour déjà prévu : on ouvre le passage (le modifier, le marquer urgent, ajouter un 2e passage…)
+    if (existing.has(date) && !selected.has(date)) {
+      setOpenMission(giteMissions.find((x) => x.date === date)!);
       return;
     }
     setSelected((s) => {
@@ -215,7 +218,7 @@ export default function PlanPage() {
         <Link href="/espace/" className="btn-ghost size-9 px-0 sm:hidden" aria-label="Retour"><ArrowLeft className="size-5" /></Link>
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight">Encoder mes dates</h1>
-          <p className="muted text-sm">{mode === "dates" ? "Touchez les jours où un nettoyage est nécessaire." : "Touchez le premier puis le dernier jour : nous passerons à une date de cette période."}</p>
+          <p className="muted text-sm">{mode === "dates" ? "Touchez les jours où un nettoyage est nécessaire. Un jour déjà prévu ? Touchez-le pour le modifier." : "Touchez le premier puis le dernier jour : nous passerons à une date de cette période."}</p>
         </div>
       </div>
 
@@ -349,6 +352,20 @@ export default function PlanPage() {
       {gite?.icalFeeds?.length ? (
         <p className="muted flex gap-2 text-xs"><Info className="mt-0.5 size-3.5 shrink-0" />Vos réservations {gite.icalFeeds.map((f) => f.label).join(" et ")} sont synchronisées automatiquement : inutile d&apos;encoder les départs de voyageurs.</p>
       ) : null}
+
+      <OwnerMissionSheet
+        mission={openMission}
+        onClose={() => setOpenMission(null)}
+        onAddSameDay={(d) => {
+          if (d < minDate) {
+            toast(`Moins de ${settings.minNoticeHours} h avant : appelez-nous au ${settings.companyPhone} pour un passage en plus`, "info");
+            return;
+          }
+          setMode("dates");
+          setSelected((s0) => new Set(s0).add(d));
+          toast("2e passage ajouté : précisez l'heure dans « Options », puis envoyez", "info");
+        }}
+      />
 
       {/* Barre d'envoi */}
       {items.length > 0 && (

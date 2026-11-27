@@ -15,7 +15,7 @@ import type { Mission } from "@/lib/types";
 type Tab = "pending" | "past" | "upcoming" | "history";
 
 export default function RequestsPage() {
-  const { missions, me, giteById } = useAdmin();
+  const { missions, me, giteById, changes } = useAdmin();
   const vue = useParam("vue");
   const [tab, setTab] = useState<Tab>("pending");
   const [q, setQ] = useState("");
@@ -86,7 +86,7 @@ export default function RequestsPage() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: "pending", label: <>En attente <Count n={lists.pending.length} tone="amber" /></> },
+            { value: "pending", label: <>En attente <Count n={lists.pending.length + changes.length} tone="amber" /></> },
             { value: "past", label: <>À clôturer <Count n={lists.past.length} tone="rose" /></> },
             { value: "upcoming", label: "À venir" },
             { value: "history", label: "Historique" },
@@ -100,6 +100,17 @@ export default function RequestsPage() {
 
       {tab === "past" && list.length > 0 && (
         <p className="muted mb-3 text-sm">Ces passages confirmés sont passés : marquez-les comme effectués pour garder un historique à jour.</p>
+      )}
+
+      {tab === "pending" && changes.length > 0 && (
+        <section className="card mb-4 overflow-hidden border-amber-300 dark:border-amber-400/30">
+          <p className="border-b border-[var(--border)] bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">
+            Changements demandés sur des passages confirmés · {changes.length}
+          </p>
+          <div className="divide-y divide-[var(--border)]">
+            {changes.map((m) => <MissionLine key={m.id} m={m} onClick={() => setOpen(m)} />)}
+          </div>
+        </section>
       )}
 
       <div className="card overflow-hidden">

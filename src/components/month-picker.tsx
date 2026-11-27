@@ -48,11 +48,12 @@ export function MonthPicker({
         ))}
         {weeks.flat().map((date, i) => {
           if (!date) return <div key={`x${i}`} />;
-          const disabled = (!!minDate && date < minDate) || (!!maxDate && date > maxDate);
+          const marks = markers[date] ?? [];
+          // Un jour où un passage est déjà prévu reste touchable (pour l'ouvrir), même dans le délai minimum
+          const disabled = !(marks.length && date >= today) && ((!!minDate && date < minDate) || (!!maxDate && date > maxDate));
           const isSel = selected.has(date);
           const isSoft = !isSel && !!soft?.has(date);
           const isToday = date === today;
-          const marks = markers[date] ?? [];
           return (
             <button
               key={date}

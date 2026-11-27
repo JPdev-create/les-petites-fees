@@ -69,9 +69,16 @@ async function notifyAdmins(s: Settings, people: Map<string, Profile>) {
   const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Mission).sort((a, b) => a.date.localeCompare(b.date));
   const created = items.filter((m) => m.status === "REQUESTED");
   const cancelled = items.filter((m) => m.status === "CANCELLED");
+  const changed = items.filter((m) => m.status === "CONFIRMED" && m.changeRequest);
+  if (!created.length && !cancelled.length && !changed.length) {
+    const b = db.batch();
+    snap.docs.forEach((d) => b.update(d.ref, { notifyAdmin: false }));
+    await b.commit();
+    return 0;
+  }
   const gites = await giteMap();
   for (const a of [...people.values()].filter((p) => p.role === "ADMIN" && p.active && p.notifyEmail)) {
-    const [subject, email] = adminRequestsEmail(a, created, cancelled, gites, people);
+    const [subject, email] = adminRequestsEmail(a, created, cancelled, gites, people, changed);
     await send(db, a.email, subject, email, s, "NEW_REQUEST");
   }
   const batch = db.batch();

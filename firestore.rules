@@ -117,7 +117,15 @@ service cloud.firestore {
         || (before.status == 'REQUESTED' && after.status == 'REQUESTED' && isDate(after.date) && notPast(after.date)
             && validRange(after) && validMissionText(after)
             && onlyChanges(['date', 'dateTo', 'time', 'ownerNote', 'urgent', 'extraLinen', 'updatedAt', 'notifyAdmin']))
+        // Passage confirmé : le client demande un changement (urgent, heure, linge, message) ou retire sa demande
+        || (before.status == 'CONFIRMED' && after.status == 'CONFIRMED' && validChangeRequest(after)
+            && onlyChanges(['changeRequest', 'updatedAt', 'notifyAdmin']))
       );
+    }
+    function validChangeRequest(d) {
+      let c = d.get('changeRequest', null);
+      return c == null || (c is map && c.keys().hasOnly(['time', 'urgent', 'extraLinen', 'note', 'at'])
+        && c.at is string && optText(c, 'note', 1000) && optTime(c) && optBool(c, 'urgent') && optBool(c, 'extraLinen'));
     }
 
     match /missions/{id} {

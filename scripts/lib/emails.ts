@@ -132,7 +132,7 @@ export function reminderEmail(p: Profile, period: string, missing: string[], s: 
 
 /* ============================ Gestionnaires ============================ */
 
-export function adminRequestsEmail(a: Profile, created: Mission[], cancelled: Mission[], gites: Map<string, Gite>, people: Map<string, Profile>): [string, Email] {
+export function adminRequestsEmail(a: Profile, created: Mission[], cancelled: Mission[], gites: Map<string, Gite>, people: Map<string, Profile>, changed: Mission[] = []): [string, Email] {
   const row = (m: Mission): EmailItem => {
     const owner = people.get(m.ownerEmail);
     return {
@@ -149,20 +149,33 @@ export function adminRequestsEmail(a: Profile, created: Mission[], cancelled: Mi
   const parts: string[] = [];
   if (created.length) parts.push(created.length > 1 ? `${created.length} nouvelles demandes` : "1 nouvelle demande");
   if (cancelled.length) parts.push(cancelled.length > 1 ? `${cancelled.length} annulations` : "1 annulation");
-  const subject = capitalize(parts.join(" et "));
+  if (changed.length) parts.push(changed.length > 1 ? `${changed.length} changements demandés` : "1 changement demandé");
+  const subject = capitalize(parts.length > 2 ? `${parts.slice(0, -1).join(", ")} et ${parts.at(-1)}` : parts.join(" et "));
+  const changeRow = (m: Mission): EmailItem => {
+    const c = m.changeRequest!;
+    const r = row(m);
+    const wanted = [
+      c.urgent && !m.urgent ? "⚡ passer en urgent" : "",
+      c.time !== undefined && c.time !== (m.time ?? null) ? `heure : ${c.time || "libre"}` : "",
+      c.extraLinen && !m.extraLinen ? "linge supplémentaire" : "",
+      c.note ? `« ${c.note} »` : "",
+    ].filter(Boolean).join(" · ");
+    return { ...r, meta: [wanted ? `Demandé : ${wanted}` : "", r.meta].filter(Boolean).join(" — ") };
+  };
   return [
     subject,
     {
       audience: "admin",
-      preheader: [...created, ...cancelled].map((m) => `${m.giteName} ${formatDate(m.date, "short")}`).join(", "),
+      preheader: [...created, ...changed, ...cancelled].map((m) => `${m.giteName} ${formatDate(m.date, "short")}`).join(", "),
       title: subject,
       intro: `Bonjour ${first(a.name)},`,
-      lines: [created.length ? "Des clients viennent d'encoder des dates. Un clic suffit pour les confirmer :" : "Des clients ont annulé des passages :"],
+      lines: [created.length ? "Des clients viennent d'encoder des dates. Un clic suffit pour les confirmer :" : changed.length ? "Des clients demandent un changement sur un passage confirmé :" : "Des clients ont annulé des passages :"],
       sections: [
         { heading: "À confirmer", tone: "warning", items: created.map(row) },
+        { heading: "Changement demandé (passage confirmé)", tone: "warning", items: changed.map(changeRow) },
         { heading: "Annulé par le client", tone: "danger", items: cancelled.map(row) },
       ],
-      cta: { label: created.length ? "Confirmer les demandes" : "Ouvrir le planning", url: `${APP_URL}/admin/demandes/` },
+      cta: { label: created.length || changed.length ? "Traiter les demandes" : "Ouvrir le planning", url: `${APP_URL}/admin/demandes/` },
     },
   ];
 }

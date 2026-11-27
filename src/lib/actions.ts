@@ -8,7 +8,7 @@ import { fb, absoluteUrl } from "./firebase";
 import { addDays, formatDate, periodBounds, periodLabel, periodOf, todayISO } from "./format";
 import { durationLabel } from "./pricing";
 import { HORIZON_DAYS, isUntouchedOccurrence, occurrenceId, occurrenceMission, occurrences, recurrenceLabel } from "./recurrence";
-import type { Gite, Mission, MissionStatus, Profile, Recurrence, Settings } from "./types";
+import type { ChangeRequest, Gite, Mission, MissionStatus, Profile, Recurrence, Settings } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
 const now = () => new Date().toISOString();
@@ -63,7 +63,34 @@ export async function ownerUpdateRequest(m: Mission, patch: Partial<Pick<Mission
   await updateDoc(doc(db(), "missions", m.id), { ...patch, notifyAdmin: true, updatedAt: now() });
 }
 
+/** Passage déjà confirmé : le client demande un changement, validé ensuite par un gestionnaire (null = retirer la demande) */
+export async function ownerRequestChange(m: Mission, change: Omit<ChangeRequest, "at"> | null) {
+  await updateDoc(doc(db(), "missions", m.id), { changeRequest: change ? { ...change, at: now() } : null, notifyAdmin: !!change, updatedAt: now() });
+}
+
 /* ============================ Côté gestionnaire ============================ */
+
+/** Accepte le changement demandé par le client : appliqué au passage, le client reçoit une confirmation */
+export async function applyChangeRequest(m: Mission, by: string) {
+  const c = m.changeRequest;
+  if (!c) return;
+  const note = c.note?.trim();
+  await updateDoc(doc(db(), "missions", m.id), {
+    ...(c.time !== undefined ? { time: c.time } : {}),
+    ...(c.urgent !== undefined ? { urgent: c.urgent } : {}),
+    ...(c.extraLinen !== undefined ? { extraLinen: c.extraLinen } : {}),
+    ...(note ? { ownerNote: m.ownerNote && !m.ownerNote.includes(note) ? `${m.ownerNote}\n${note}` : note } : {}),
+    changeRequest: null, notifyAdmin: false, notifyOwner: "CONFIRMED", ...(m.recurrenceId ? { recurrenceException: true } : {}), updatedAt: now(),
+  });
+  await log(by, `Changement accepté : ${m.giteName} le ${formatDate(m.date, "short")}`);
+}
+
+export async function dismissChangeRequest(m: Mission, by: string) {
+  await updateDoc(doc(db(), "missions", m.id), { changeRequest: null, notifyAdmin: false, updatedAt: now() });
+  await log(by, `Changement refusé : ${m.giteName} le ${formatDate(m.date, "short")}`);
+}
+
+/* ---------------------------------------------------------------------------- */
 
 export async function setMissionsStatus(ids: string[], status: MissionStatus, by: string, extra: Record<string, unknown> = {}) {
   const batch = writeBatch(db());

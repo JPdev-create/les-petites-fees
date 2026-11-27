@@ -20,6 +20,8 @@ type AdminData = {
   loading: boolean;
   giteById: Map<string, Gite>;
   pending: Mission[];
+  /** Passages confirmés pour lesquels le client demande un changement */
+  changes: Mission[];
 };
 
 const Ctx = createContext<AdminData | null>(null);
@@ -64,6 +66,7 @@ export function AdminDataProvider({ me, children }: { me: Profile; children: Rea
       loading: gites.loading || profiles.loading || missions.loading,
       giteById,
       pending: missions.data.filter((m) => m.status === "REQUESTED"),
+      changes: missions.data.filter((m) => m.status === "CONFIRMED" && !!m.changeRequest).sort((a, b) => a.date.localeCompare(b.date)),
     };
   }, [me, gites, profiles, missions, submissions, recurrences, settings]);
 

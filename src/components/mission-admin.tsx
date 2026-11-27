@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Ban, CalendarRange, CalendarDays } from "lucide-react";
+import { Check, X, CalendarClock, CheckCheck, Trash2, RotateCcw, Zap, Shirt, MapPin, KeyRound, StickyNote, Plus, Repeat, Ban, CalendarRange, CalendarDays, Bell } from "lucide-react";
 import type { Gite, Mission, MissionStatus } from "@/lib/types";
 import { SOURCE, formatDate, relativeDay, todayISO, periodOf, timeAgo, addDays, missionWhen } from "@/lib/format";
-import { deleteMission, moveMission, setMissionsStatus, adminCreateMissions, adminCreatePeriods, completeMissions, confirmOnDate, saveMissionNote } from "@/lib/actions";
+import { applyChangeRequest, dismissChangeRequest, deleteMission, moveMission, setMissionsStatus, adminCreateMissions, adminCreatePeriods, completeMissions, confirmOnDate, saveMissionNote } from "@/lib/actions";
 import { useLiveDoc } from "@/lib/hooks";
 import { durationLabel } from "@/lib/pricing";
 import { missionTitle, recurrenceLabel } from "@/lib/recurrence";
@@ -34,6 +34,7 @@ export function MissionLine({ m, onClick, showOwner = true, right }: { m: Missio
           {m.urgent && <span className="badge bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300"><Zap className="size-3" />Urgent</span>}
           {m.extraLinen && <Shirt className="size-3.5 text-violet-500" aria-label="Linge supplémentaire" />}
           {m.dateTo && <span className="badge bg-brand-100 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200">Période</span>}
+          {m.changeRequest && m.status === "CONFIRMED" && <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300"><Bell className="size-3" />Changement demandé</span>}
           {m.source === "ICAL" && <span className="badge bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300">{m.icalSource || "iCal"}</span>}
         </div>
         <p className="muted truncate text-[13px]">
@@ -181,6 +182,22 @@ export function MissionDialog({ mission, onClose }: { mission: Mission | null; o
             <StatusBadge status={m.status} />
             {m.urgent && <span className="badge bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300"><Zap className="size-3" /> Urgent</span>}
           </div>
+          {m.changeRequest && m.status === "CONFIRMED" && (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-100">
+              <p className="flex items-center gap-1.5 font-semibold"><Bell className="size-4" /> {m.ownerName || "Le client"} demande un changement</p>
+              <ul className="mt-2 space-y-1">
+                {m.changeRequest.urgent !== undefined && m.changeRequest.urgent !== !!m.urgent && <li>{m.changeRequest.urgent ? "⚡ Passer en urgent (voyageurs le jour même)" : "Plus urgent"}</li>}
+                {m.changeRequest.time !== undefined && m.changeRequest.time !== (m.time ?? null) && <li>Heure : {m.time || "libre"} → <strong>{m.changeRequest.time || "libre"}</strong></li>}
+                {m.changeRequest.extraLinen !== undefined && m.changeRequest.extraLinen !== !!m.extraLinen && <li>{m.changeRequest.extraLinen ? "Linge supplémentaire" : "Plus de linge supplémentaire"}</li>}
+                {m.changeRequest.note && <li>« {m.changeRequest.note} »</li>}
+              </ul>
+              <p className="mt-1 text-xs opacity-70">Demandé {timeAgo(m.changeRequest.at)}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button className="btn-primary btn-sm" disabled={busy} onClick={() => run(() => applyChangeRequest(m, me.name), "Changement appliqué — le client sera prévenu")}>{busy ? <Spinner className="size-3.5" /> : <Check className="size-3.5" />} Accepter</button>
+                <button className="btn-secondary btn-sm" disabled={busy} onClick={async () => (await askConfirm({ title: "Refuser ce changement ?", message: "Le passage reste tel quel. Pensez à prévenir le client (il n'est pas averti automatiquement).", confirmLabel: "Refuser", danger: true })) && run(() => dismissChangeRequest(m, me.name), "Changement refusé")}><X className="size-3.5" /> Refuser</button>
+              </div>
+            </div>
+          )}
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             <div><dt className="muted text-xs">{m.dateTo ? "Période souhaitée" : "Date"}</dt><dd className="font-semibold">{m.dateTo ? missionWhen(m) : formatDate(m.date)}</dd></div>
             <div><dt className="muted text-xs">Heure</dt><dd className="font-semibold">{m.time || "—"}</dd></div>

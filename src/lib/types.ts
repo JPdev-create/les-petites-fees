@@ -90,7 +90,11 @@ export type Mission = {
   createdAt?: string;
   updatedAt?: string;
   doneAt?: string | null;
+  /** Changement demandé par le client sur un passage déjà confirmé (en attente de validation) */
+  changeRequest?: ChangeRequest | null;
 };
+
+export type ChangeRequest = { time?: string | null; urgent?: boolean; extraLinen?: boolean; note?: string | null; at: string };
 
 /**
  * recurrences/{id} — passage régulier d'un lieu. Les passages sont créés à l'avance
