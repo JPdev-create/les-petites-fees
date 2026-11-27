@@ -120,18 +120,19 @@ const FICHE_LABELS: Record<keyof Fiche, string> = {
 const KIND_LABELS: Record<Gite["kind"], string> = { GITE: "Gîte", BUREAU: "Bureau", APPARTEMENT: "Appartement", AUTRE: "Autre" };
 
 /**
- * Fiche de contrôle proposée d'après le type et le nom du lieu (B1 bureaux, A2 parties communes, A1 commerces et autres).
- * Gîtes et appartements : pas de fiche par défaut (aucun des modèles ne leur correspond).
+ * Fiche de contrôle proposée d'après le type et le nom du lieu (B1 bureaux, A2 parties communes, A1 commerces et autres,
+ * G1 gîtes et appartements de location).
  * Posée une seule fois, sur un chantier qui n'a encore jamais eu de réglage : l'admin garde la main dans la pointeuse.
  */
-export const MODELE_PAR_TYPE: Partial<Record<Gite["kind"], "A1" | "A2" | "B1">> = { BUREAU: "B1", AUTRE: "A1" };
+export const MODELE_PAR_TYPE: Partial<Record<Gite["kind"], "A1" | "A2" | "B1" | "G1">> = { BUREAU: "B1", AUTRE: "A1", GITE: "G1", APPARTEMENT: "G1" };
 // Le type du lieu ne suffit pas (beaucoup de lieux sont classés « Bureau ») : le nom l'emporte quand il est clair
 const NOM_A2 = /\bcommuns?\b/; // parties communes d'immeubles
 const NOM_A1 = /boulang|\bbar\b|restaurant|\bthai\b|brasserie|boutique|magasin|\bshop\b|commerce|salon|serre|garage|atelier/;
-export function modeleParDefaut(g: Pick<Gite, "kind" | "name">): "A1" | "A2" | "B1" | null {
-  if (g.kind === "GITE" || g.kind === "APPARTEMENT") return null;
+export function modeleParDefaut(g: Pick<Gite, "kind" | "name">): "A1" | "A2" | "B1" | "G1" | null {
+  if (g.kind === "GITE") return "G1";
   const nom = norm(g.name).replace(/[^a-z0-9]+/g, " ");
   if (NOM_A2.test(nom)) return "A2";
+  if (g.kind === "APPARTEMENT") return "G1";
   if (NOM_A1.test(nom)) return "A1";
   return MODELE_PAR_TYPE[g.kind] ?? null;
 }

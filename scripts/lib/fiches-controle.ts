@@ -1,6 +1,6 @@
 // Fiches de contrôle remplies dans la Pointeuse LPF (collection « fichesControle » de sa base).
 // Une fiche validée part en PDF avec le mail « Nettoyage effectué » du soir : on remplit le PDF d'origine
-// (scripts/fiches/A1.pdf, A2.pdf, B1.pdf — les mêmes que la pointeuse) puis on aplatit ses champs.
+// (scripts/fiches/A1.pdf, A2.pdf, B1.pdf, G1.pdf — les mêmes que la pointeuse) puis on aplatit ses champs.
 // Même logique que modules/fiches-controle.js de la pointeuse.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -11,7 +11,7 @@ export type FicheControle = {
   chantierId: string;
   chantierName?: string;
   date: string; // AAAA-MM-JJ
-  modele: "A1" | "A2" | "B1";
+  modele: "A1" | "A2" | "B1" | "G1";
   zone?: string;
   horsPrestation?: number[];
   responsableNom?: string;
@@ -25,7 +25,7 @@ export type FicheControle = {
 };
 
 export const FICHES_COLLECTION = "fichesControle";
-const NB_POINTS = { A1: 15, A2: 15, B1: 14 } as const;
+const NB_POINTS = { A1: 15, A2: 15, B1: 14, G1: 15 } as const;
 const OPTION_PDF = { F: "Fait", R: "A_revoir", S: "Sans_objet" } as const;
 
 /** Identifiant de la fiche d'un chantier de la pointeuse pour un jour donné */
